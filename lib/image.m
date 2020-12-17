@@ -12,7 +12,7 @@ classdef image
         imagefiles % [cell] full image filename(s) with extension
         cube % [dbl] raw hyperspectral data cube
         disp % [dbl] hyperspectral data cube after pre processing
-        imx  % ... [dbl] image size in x dir
+        imx  % [dbl] image size in x dir
         imy  % [dbl] image size in y dir
         satpix % [logical] saturated pixel mask
         A % [dbl] unmixing matrix
@@ -30,18 +30,18 @@ classdef image
     end
     
     methods (Access = public)
-        function [im, ME] = getImageCube(im, filetype)
+        function flag = getImageCube(filetype)
             %% getImageCube -  Loads the hypersepctra image cube according to the
             % filetype and path provided in 'img'
             
-            if im.isLoaded
+            if image.isLoaded
                 % Image already loaded
                 return;
             end
             
             
             % Initailze error message.
-            ME = [];
+            flag = [];
             
             % try % to load the image cube
             
@@ -49,24 +49,24 @@ classdef image
                 case 'hyper' % Load hyperCFME Data
                     
                     % path specifies sub-directory containing images
-                    if ~isfolder(im.path)
-                        ME = 'HyperCFME data must be a directory';
+                    if ~isfolder(image.path)
+                        flag = 'HyperCFME data must be a directory';
                         return;
                     end
                     
                     % Get images in the sub directory
-                    FileInfo = struct2cell(dir([im.path filesep '*mW_*.tif']));
+                    FileInfo = struct2cell(dir([image.path filesep '*mW_*.tif']));
                     if isempty(FileInfo)
-                        ME = 'File not found';
-                        im.filename = 'NOT_LOADED';
+                        flag = 'File not found';
+                        image.filename = 'NOT_LOADED';
                         return;
                     end
                     
                     % Only need image names
-                    imagefiles = FileInfo(1,:);
+                    image.imagefiles = FileInfo(1,:);
                     
                     % Number of lambda channels
-                    num_wl = length(imagefiles);
+                    num_wl = length(image.imagefiles);
                     
                     % Take the first file to parse
                     file1 = FileInfo{1,1};
@@ -94,7 +94,7 @@ classdef image
                     pwr = str2double(pwr_str);
                     
                     % Filename for listbox
-                    filename = [filenamebase ' - ' pwr_str ' mW'];
+                    image.filename = [filenamebase ' - ' pwr_str ' mW'];
                     
                     % TODO: Test for non-integer powers
                     %     if length(pwr) > 4
@@ -106,7 +106,7 @@ classdef image
                     %     end
                     
                     % Load first image to get image size
-                    I = double(imread([im.path filesep file1]));
+                    I = double(imread([image.path filesep file1]));
                     [imx, imy] = size(I);
                     
                     % Initialize variables
@@ -116,7 +116,7 @@ classdef image
                     
                     for i = 1:num_wl
                         % Load Image
-                        I = double(imread([im.path filesep imagefiles{i}]));
+                        I = double(imread([image.path filesep imagefiles{i}]));
                         
                         % Normalize Image (10 bit scale)
                         I = I / 1023;
@@ -157,12 +157,12 @@ classdef image
                     
                 case 'maestro'
                     % path specifies sub-directory containing images
-                    if ~isfolder(im.path)
+                    if ~isfolder(image.path)
                         error('Maestro data must be a directory');
                     end
                     
                     % Get images in the sub directory
-                    FileInfo = struct2cell(dir([im.path filesep '*ms*.tif']));
+                    FileInfo = struct2cell(dir([image.path filesep '*ms*.tif']));
                     
                     % Only need file names
                     imagefiles = FileInfo(1,:);
@@ -183,7 +183,7 @@ classdef image
                     file1 = FileInfo{1,1};
                     
                     % Load first image to get image size
-                    I = double(imread([im.path filesep file1]));
+                    I = double(imread([image.path filesep file1]));
                     [imx, imy] = size(I);
                     
                     % Initialize variables
@@ -193,7 +193,7 @@ classdef image
                     wlvec = zeros(1, num_wl);
                     for i = 1:num_wl
                         % Path to image
-                        impath = [im.path filesep imagefiles{i}];
+                        impath = [image.path filesep imagefiles{i}];
                         
                         % Load Image
                         I = double(imread(impath));
@@ -225,15 +225,15 @@ classdef image
                     % path specifies full path to the .dat file
                     % Requires use of enviread function
                     
-                    [filepath, filename, ext] = fileparts(im.path);
+                    [filepath, filename, ext] = fileparts(image.path);
                     if ~strcmp(ext, '.dat')
-                        ME = 'Path to olympus datfile not specified';
+                        flag = 'Path to olympus datfile not specified';
                         return;
                     end
                     
                     hdrfile = [filepath filesep filename '.hdr'];
                     if exist(hdrfile, 'file') ~= 2
-                        ME = 'Could not locate hdr file for specified dat file';
+                        flag = 'Could not locate hdr file for specified dat file';
                         return;
                     end
                     
@@ -241,7 +241,7 @@ classdef image
                     imagefiles = {[filename '.dat'], [filename '.hdr']};
                     
                     % Get image cube
-                    [im_cube, info] = enviread(im.path, hdrfile);
+                    [im_cube, info] = enviread(image.path, hdrfile);
                     
                     % For Specim images, rotate 90 degrees
                     if any(strcmp(info.interleave, {'BIL', 'bil'}))
@@ -287,7 +287,7 @@ classdef image
                     % Requires use of the BioFormats Matlab Toolbox:
                     % https://www.openmicroscopy.org/bio-formats/downloads/
                     
-                    [~, filename, ext] = fileparts(im.path);
+                    [~, filename, ext] = fileparts(image.path);
                     if ~strcmp(ext, '.oir')
                         error('Path to olympus datafile not specified');
                     end
@@ -295,7 +295,7 @@ classdef image
                     imagefiles = {filename};
                     
                     % Load data
-                    data = bfOpen3DVolume(im.path);
+                    data = bfOpen3DVolume(image.path);
                     metadata = data{1, 2};
                     omeMeta  = data{1,4};
                     xmlString = char(omeMeta.dumpXML());
@@ -371,12 +371,12 @@ classdef image
                 case 'oir-tiff'
                     
                     % path specifies sub-directory containing images
-                    if ~isfolder(im.path)
+                    if ~isfolder(image.path)
                         error('OIR-TIFF data must be a directory');
                     end
                     
                     % Get images in the sub directory
-                    FileInfo = struct2cell(dir([im.path filesep '*lambda*.tif']));
+                    FileInfo = struct2cell(dir([image.path filesep '*lambda*.tif']));
                     
                     % Only need image names
                     imagefiles = FileInfo(1,:);
@@ -431,9 +431,9 @@ classdef image
                 case 'slice' % Load Davis Lab data
                     % path specifies full path to the .tif stack
                     
-                    [filepath, filename, ext] = fileparts(im.path);
+                    [filepath, filename, ext] = fileparts(image.path);
                     if ~strcmp(ext, '.tif')
-                        ME = 'Path to .tif stack not specified';
+                        flag = 'Path to .tif stack not specified';
                         return;
                     end
                     
@@ -448,14 +448,14 @@ classdef image
                     wlvec = table2array(wlvec(:,1));
                     
                     % Image parameters
-                    im_cube = imread(im.path,1);
+                    im_cube = imread(image.path,1);
                     [imx, imy] = size(im_cube);
                     num_wl = length(wlvec);
                     
                     % Get image cube
                     im_cube = ones(imx,imy,num_wl);
                     for i = 1:num_wl
-                        im_cube(:,:,i) = imread(im.path,i);
+                        im_cube(:,:,i) = imread(image.path,i);
                     end
                     
                     SatPixels = ones(imx, imy);
@@ -468,7 +468,7 @@ classdef image
                     % Requires use of the BioFormats Matlab Toolbox:
                     % https://www.openmicroscopy.org/bio-formats/downloads/
                     
-                    [~, filename, ext] = fileparts(im.path);
+                    [~, filename, ext] = fileparts(image.path);
                     if ~strcmp(ext, '.czi')
                         error('Path to zeiss datafile not specified');
                     end
@@ -476,7 +476,7 @@ classdef image
                     imagefiles = {filename};
                     
                     % Load data
-                    data = bfOpen3DVolume(im.path);
+                    data = bfOpen3DVolume(image.path);
                     metadata = data{1,2};
                     
                     % Save image cube
@@ -502,12 +502,12 @@ classdef image
             end
             
             % Initialize roi - default roi is entire image
-            % im.roi = struct('mask',   ones(imx, imy), ... [dbl] binary mask, 1 inside the roi, 0 outside
+            % image.roi = struct('mask',   ones(imx, imy), ... [dbl] binary mask, 1 inside the roi, 0 outside
             %                 'pts',    [0 0; 0 imx; imy imx; imy 0; 0 0], ... [dbl] (x,y) coords that define the roi boundary
             %                 'type',   'boundary');... [str] specify the type of roi {'boundary', 'point'}
-            im.roi = getRegion([imx imy], 'default');
+            image.roi = getRegion([imx imy], 'default');
             
-            im.roiStats = struct('savg',   [], ... [dbl] average spectrum in roi
+            image.roiStats = struct('savg',   [], ... [dbl] average spectrum in roi
                 'sstd',   [], ... [dbl] standard dev of savg
                 'xavg',   [], ... [dbl] average unmixing coefs in roi
                 'xstd',   [], ... [dbl] standard dev of xavg
@@ -515,19 +515,19 @@ classdef image
                 'npx',    []);... [dbl] number of pixels in roi
                 
             % OUTPUTS
-            im.imx        = imx;
-            im.imy        = imy;
-            im.power      = pwr;
-            im.wl         = wlvec;
-            im.filename   = filename;
-            im.imagefiles = imagefiles;
-            im.cube       = im_cube;
-            im.satpix     = SatPixels;
-            im.filt       = filt;
+            image.imx        = imx;
+            image.imy        = imy;
+            image.power      = pwr;
+            image.wl         = wlvec;
+            image.filename   = filename;
+            image.imagefiles = imagefiles;
+            image.cube       = im_cube;
+            image.satpix     = SatPixels;
+            image.filt       = filt;
             
             % Image is loaded
-            im.isLoaded = true;
-            im.isUnmixed = false;
+            image.isLoaded = true;
+            image.isUnmixed = false;
             end
         end
         
