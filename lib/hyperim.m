@@ -30,7 +30,7 @@ classdef hyperim
     end
     
     methods (Access = public)    
-        function obj = getImageCube(obj,filetype)
+        function [obj, flag] = getImageCube(obj,filetype)
             %% getImageCube -  Loads the hypersepctra image cube according to the
             % filetype and path provided in 'img'
             
@@ -505,7 +505,7 @@ classdef hyperim
             %                 'pts',    [0 0; 0 imx; imy imx; imy 0; 0 0], ... [dbl] (x,y) coords that define the roi boundary
             %                 'type',   'boundary');... [str] specify the type of roi {'boundary', 'point'}
             
-            obj.roi = getRegion([obj.imx obj.imy], 'default');
+            %obj.roi = getRegion([obj.imx obj.imy], 'default');
             
             obj.roiStats = struct('savg',   [], ... [dbl] average spectrum in roi
                 'sstd',   [], ... [dbl] standard dev of savg
@@ -528,7 +528,90 @@ classdef hyperim
             % Image is loaded
             obj.isLoaded = true;
             obj.isUnmixed = false;
+        end
+        function obj = getAmatrix(obj, spec, filetype)
+            %% getAmatrix - parses the basis spectra to match the image spectral
+            % resolution (if required) and retuns d A matrix
+    
+            num_wl   = length(obj.wl);
+            num_spec = length(spec);
+
+            switch filetype
+                case {'hyper', 'maestro'}
+
+                    % Basis spectra already at correct resolution
+                    A = [spec.data];
+
+                case {'envi', 'oir', 'oir-tiff', 'czi', 'slice'}
+
+                    % Interpolate basis spec data to match image wl res
+                    A = zeros(num_wl, num_spec);
+                    for i = 1:num_spec
+
+                        % Interp the basis spectra at the image wavelength resolution
+                        newspec = interp1(spec(i).wl, spec(i).data, obj.wl, 'pchip', 'extrap');
+
+                        % Check if interpolation worked
+                        if any(isinf(newspec)) || any(isnan(newspec))
+                            % If not, warn user, A matrix kept at zero
+                            warning('Ignoring spectra #%d; incorrect interpolation', i);
+
+                        else
+                            % All good
+                            A(:, i) = newspec;
+                        end
+                    end
+            end
+
+            % Normalize
+            maxA = repmat(max(A), [size(A, 1), 1]);
+            obj.A    = A ./ maxA;
+        end
+        function c_cube = smoothSpectra(obj, specrange)
+            %% smoothSpectra - use a smoothing spline to smooth spectrum of pixels
+            
+            %[imx, imy, ~] = size(cube);
+            c_cube = zeros(size(obj.cube));
+            wlvec = obj.wl(:);
+            cube = obj.cube;
+            loadvec = linspace(0, 100, obj.imx + 1);
+            loadvec(1) = [];
+            % handles.msgbox.String = sprintf('Calculating Splines ...  0%%');
+            drawnow;
+            
+            % Default 4th order peicewise spline poly
+            X = [wlvec wlvec.^2 wlvec.^3 wlvec.^4];
+            
+            % Per pixel smoothing spline fit
+            % NOTE: Curve fitting toolbox required for fit
+            for i = 1:obj.imx
+                parfor j = 1:obj.imy
+                    
+                    % Get spectrum
+                    spec = squeeze(cube(i, j, :));
+                    
+                    % Fit
+                    %         [f,gof,out] = fit(wlvec, spec, 'smoothingspline');
+                    %         f = fit(wlvec, spec, 'smoothingspline');
+                    options = fitoptions('Method','Smooth','SmoothingParam',0.007);
+                    [f,~,~] = fit(wlvec, spec, 'smoothingspline', options);
+                    %         out.p
+                    % Extract fit
+                    coefs = [f.p.coefs; f.p.coefs(end, :)];
+                    Y = sum(X.*coefs, 2);
+                    % Normalize to scale of spectra
+                    Y = Y .* max(spec) ./ max(Y);
+                    
+                    % Save fit into new cube
+                    c_cube(i, j, :) = Y;
+                    
+                end
+                
+                %     handles.msgbox.String = sprintf('Calculating Splines ...  %1.0f %%', ...
+                %                                     loadvec(i));
+                %     drawnow;
+                
             end
         end
-        
+    end
 end
