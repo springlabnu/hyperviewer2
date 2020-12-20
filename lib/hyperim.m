@@ -30,7 +30,7 @@ classdef hyperim
     end
     
     methods (Access = public)    
-        function [obj, flag] = getImageCube(obj,filetype)
+        function [obj, flag] = getImageCube(obj, filetype)
             %% getImageCube -  Loads the hypersepctra image cube according to the
             % filetype and path provided in 'img'
             
@@ -38,7 +38,6 @@ classdef hyperim
                 % Image already loaded
                 return;
             end
-            
             
             % Initialize error message.
             flag = [];
@@ -541,12 +540,12 @@ classdef hyperim
                 case {'hyper', 'maestro'}
 
                     % Basis spectra already at correct resolution
-                    A = [spec.data];
+                    obj.A = [spec.data];
 
                 case {'envi', 'oir', 'oir-tiff', 'czi', 'slice'}
 
                     % Interpolate basis spec data to match image wl res
-                    A = zeros(num_wl, num_spec);
+                    obj.A = zeros(num_wl, num_spec);
                     for i = 1:num_spec
 
                         % Interp the basis spectra at the image wavelength resolution
@@ -559,27 +558,21 @@ classdef hyperim
 
                         else
                             % All good
-                            A(:, i) = newspec;
+                            obj.A(:, i) = newspec;
                         end
                     end
             end
 
             % Normalize
-            maxA = repmat(max(A), [size(A, 1), 1]);
-            obj.A    = A ./ maxA;
+            obj.A = obj.A ./ repmat(max(obj.A), [size(obj.A, 1), 1]);
         end
         
         function c_cube = smoothSpectra(obj, specrange)
             %% smoothSpectra - use a smoothing spline to smooth spectrum of pixels
             
-            %[imx, imy, ~] = size(cube);
             c_cube = zeros(size(obj.cube));
             wlvec = obj.wl(:);
-            cube = obj.cube;
-            loadvec = linspace(0, 100, obj.imx + 1);
-            loadvec(1) = [];
-            % handles.msgbox.String = sprintf('Calculating Splines ...  0%%');
-            drawnow;
+            imgcube = obj.cube;
             
             % Default 4th order peicewise spline poly
             X = [wlvec wlvec.^2 wlvec.^3 wlvec.^4];
@@ -590,7 +583,7 @@ classdef hyperim
                 parfor j = 1:obj.imy
                     
                     % Get spectrum
-                    spec = squeeze(cube(i, j, :));
+                    spec = squeeze(imgcube(i, j, :));
                     
                     % Fit
                     %         [f,gof,out] = fit(wlvec, spec, 'smoothingspline');
@@ -608,11 +601,6 @@ classdef hyperim
                     c_cube(i, j, :) = Y;
                     
                 end
-                
-                %     handles.msgbox.String = sprintf('Calculating Splines ...  %1.0f %%', ...
-                %                                     loadvec(i));
-                %     drawnow;
-                
             end
         end
     end
