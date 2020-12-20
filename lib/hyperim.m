@@ -529,6 +529,7 @@ classdef hyperim
             obj.isLoaded = true;
             obj.isUnmixed = false;
         end
+        
         function obj = getAmatrix(obj, spec, filetype)
             %% getAmatrix - parses the basis spectra to match the image spectral
             % resolution (if required) and retuns d A matrix
@@ -567,6 +568,7 @@ classdef hyperim
             maxA = repmat(max(A), [size(A, 1), 1]);
             obj.A    = A ./ maxA;
         end
+        
         function c_cube = smoothSpectra(obj, specrange)
             %% smoothSpectra - use a smoothing spline to smooth spectrum of pixels
             
