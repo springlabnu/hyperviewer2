@@ -566,42 +566,5 @@ classdef hyperim
             % Normalize
             obj.A = obj.A ./ repmat(max(obj.A), [size(obj.A, 1), 1]);
         end
-        
-        function c_cube = smoothSpectra(obj, specrange)
-            %% smoothSpectra - use a smoothing spline to smooth spectrum of pixels
-            
-            c_cube = zeros(size(obj.cube));
-            wlvec = obj.wl(:);
-            imgcube = obj.cube;
-            
-            % Default 4th order peicewise spline poly
-            X = [wlvec wlvec.^2 wlvec.^3 wlvec.^4];
-            
-            % Per pixel smoothing spline fit
-            % NOTE: Curve fitting toolbox required for fit
-            for i = 1:obj.imx
-                parfor j = 1:obj.imy
-                    
-                    % Get spectrum
-                    spec = squeeze(imgcube(i, j, :));
-                    
-                    % Fit
-                    %         [f,gof,out] = fit(wlvec, spec, 'smoothingspline');
-                    %         f = fit(wlvec, spec, 'smoothingspline');
-                    options = fitoptions('Method','Smooth','SmoothingParam',0.007);
-                    [f,~,~] = fit(wlvec, spec, 'smoothingspline', options);
-                    %         out.p
-                    % Extract fit
-                    coefs = [f.p.coefs; f.p.coefs(end, :)];
-                    Y = sum(X.*coefs, 2);
-                    % Normalize to scale of spectra
-                    Y = Y .* max(spec) ./ max(Y);
-                    
-                    % Save fit into new cube
-                    c_cube(i, j, :) = Y;
-                    
-                end
-            end
-        end
     end
 end
