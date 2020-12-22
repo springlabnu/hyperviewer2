@@ -182,10 +182,9 @@ if isempty(varargin) || any(strcmp(varargin, 'ax3'))
     % Set white color to grey for plotting
     slabels = {app.spec.label};
     scolors = {app.spec.color};
-    try
+    if any(strcmp(scolors, 'White'))
         % Turn any 'White' spectra to Grey for visibility
-        scolors{strcmp(scolors, 'White')} = 'Grey';
-    catch
+        scolors{strcmp(scolors, 'White')} = {'Grey'};
     end
     
     % Display axes3
