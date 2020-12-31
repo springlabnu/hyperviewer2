@@ -33,10 +33,11 @@ if ~app.img(n).isLoaded
     % Inform user
     app.msgbox.Text = app.msg.loadingcube;
     
-    [app.img(n), ME] = hyperim.getImageCube(app.img(n), app.expt.filetype);
+    [app.img(n), ME] = app.img.getImageCube(app.expt.filetype);
     
     % Update filename before checking the error
-    app.DirectoryListbox.Items = {app.img.filename};
+    app.DirectoryListBox.Items = {app.img.filename};
+    app.DirectoryListBox.ItemsData = 1:length({app.img.filename});
     
     if ~isempty(ME)
         app.msgbox.Text = ME;
@@ -45,7 +46,8 @@ if ~app.img(n).isLoaded
     
 else
     % Update filename
-    app.DirectoryListbox.Items = {app.img.filename}; 
+    app.DirectoryListBox.Items = {app.img.filename};
+    app.DirectoryListBox.ItemsData = 1:length({app.img.filename});
 end
 
 
@@ -58,7 +60,7 @@ if isempty([app.spec.idx])
     return;
 end
 
-% Extra check incase cube was not found
+% Extra check in case cube was not found
 if isempty(app.img(n).cube)
     % Image wasn't loaded
     app.msgbox.Text = 'Image cube not found. This file was not loaded properly.';
@@ -72,11 +74,17 @@ if ~app.img(n).isUnmixed
     app.msgbox.Text = app.msg.unmixing; drawnow;
     
     % Unmix image
-    [app.img(n), ME] = unmixImage(app.img(n), app);
+    app.img(n) = app.img.preProcessImage(app);
+    
+    app.img(n) = app.img.getAmatrix(app);
+    
+    [app.img(n), ME] = app.img.unmixImage(app.cfg);
     if ~isempty(ME)
         app.msgbox.Text = app.msg.nogpu;
         return;
     end
+    
+    app.img(n) = app.img.postProcessImage(app);
     
     % Get ROI stats
     app.img(n).roiStats = getRegionStats(app.img(n), app.img(n).roi.mask);
@@ -94,6 +102,14 @@ else % keep in milliseconds
     app.UnmixingTimeUnitLabel.Text = 'ms';
 end
 
+% Current ROI index
+if app.GlobalROIMenu.Checked
+    roiIdx = app.cfg.roiIdx;
+else
+    roiIdx = n;
+end
+
+
 % Display selcted image on axes1
 if isempty(varargin) || any(strcmp(varargin, 'ax1'))
     
@@ -107,7 +123,8 @@ if isempty(varargin) || any(strcmp(varargin, 'ax1'))
             
             % Display composite image
             imshow(im, 'Parent', app.UIAxes1);
-            axis tight; colorbar('off');
+            axis(app.UIAxes1, 'tight'); 
+            colorbar(app.UIAxes1, 'off');
             
         case 2 % Raw image
             
@@ -120,26 +137,20 @@ if isempty(varargin) || any(strcmp(varargin, 'ax1'))
             
             % Display raw image
             imshow(im, 'Parent', app.UIAxes1);
-            axis tight; colorbar('off');
+            axis(app.UIAxes1, 'tight'); 
+            colorbar(app.UIAxes1, 'off');
             
         case 3 % Chi-squared map
             
             % Display Red. Chi-Squared Map
             imagesc(app.img(n).redchisq, 'hittest', 'off', 'Parent', app.UIAxes1);
-            axis tight;
-            app.axes1.XTickLabel = [];
-            app.axes1.YTickLabel = [];
-            colorbar;
+            axis(app.UIAxes1, 'tight'); 
+            colorbar(app.UIAxes1);
+            app.UIAxes1.XTickLabel = [];
+            app.UIAxes1.YTickLabel = [];
     end
     
     hold(app.UIAxes1, 'on');
-    
-    % Current ROI index
-    if app.state.globalroi
-        roiIdx = app.cfg.roiIdx;
-    else
-        roiIdx = n;
-    end
     
     % Display ROIs
     for a = 1:length(app.img(roiIdx).roi)
@@ -168,7 +179,8 @@ if isempty(varargin) || any(strcmp(varargin, 'ax2'))
     cla(app.UIAxes2);
     im = sum(cat(4, app.img(n).colorims.basis(m).im), 4) * app.BrightnessEditField.Value;
     imshow(im, 'Parent', app.UIAxes2);
-    axis tight; colorbar('off');
+    axis(app.UIAxes2, 'tight'); 
+    colorbar(app.UIAxes2, 'off');
     
 end
 
@@ -258,16 +270,16 @@ if isempty(varargin) || any(strcmp(varargin, 'ax3'))
             app.UIAxes3.YLim = [0 inf];
             
             if strcmp(app.ShowLegendMenu.Checked, 'on')
-                app.UIAxes3.Legend = legend(legendNames, 'Location', 'best');
+                legend(app.UIAxes3, legendNames, 'Location', 'best');
                 legend('boxon');
             else
-                app.UIAxes3.Legend = legend('off');
+                legend(app.UIAxes3, 'off');
             end
             
         case 2 % Histogram
             
             % In case multiple spectra are selected
-            roi = repmat(roi, [1 1 length(m)]);
+            roi = repmat(app.img(n).roi.mask, [1 1 length(m)]);
             
             % Mask data
             data = app.img(n).x(:, :, m) .* roi;
@@ -287,6 +299,7 @@ if isempty(varargin) || any(strcmp(varargin, 'ax3'))
             app.UIAxes3.YLabel.String ='Counts';
             app.UIAxes3.XLim = [0 1];
             app.UIAxes3.YLim =[0 inf];
+            legend(app.UIAxes3, 'off');
             
         case {3, 4} % Phasor plots
             
@@ -308,7 +321,7 @@ if isempty(varargin) || any(strcmp(varargin, 'ax3'))
                 xlab = 'G'; ylab = 'S';
                 titlestr = sprintf('Fourier Phasor plot, n = %d', app.cfg.phasor.f);
                 
-            elseif app.display_ax3_popupmenu.Value == 4 % Chebyshev
+            elseif app.ChooseAnalysisDropDown.Value == 4 % Chebyshev
                 
                 p     = app.cfg.phasor.c;
                 T     = fctCoefs(pixels, p:(p+1));
@@ -345,15 +358,13 @@ if isempty(varargin) || any(strcmp(varargin, 'ax3'))
             app.UIAxes3.Subtitle.String = titlestr;
             
             if strcmp(app.ShowLegendMenu.Checked, 'on')
-                app.UIAxes3.Legend = legend({'Phasor Points', 'Basis Spectra'}, 'Location', 'best');
-                colorbar;
+                legend(app.UIAxes3, {'Phasor Points', 'Basis Spectra'}, 'Location', 'best');
+                colorbar(app.UIAxes3, 'on');
             else
-                app.UIAxes3.Legend = legend('off');
-                colorbar off;
+                legend(app.UIAxes3, 'off');
+                colorbar(app.UIAxes3, 'off');
             end        
     end
-    
-    
 end
 
 % TODO; move this code somewhere else

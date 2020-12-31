@@ -17,6 +17,7 @@ classdef hyperim
         satpix % [logical] saturated pixel mask
         A % [dbl] unmixing matrix
         x % [dbl] unmixed basis image cube
+        r % [dbl] residuals from the unmixing fit
         x_corr        % [dbl] unmixed basis image cube with flatfield correction
         ff_correction % [dbl] flatfield correction matrix
         redchisq % [dbl] map of reduced chi squared error in unmixing
@@ -504,7 +505,7 @@ classdef hyperim
             %                 'pts',    [0 0; 0 imx; imy imx; imy 0; 0 0], ... [dbl] (x,y) coords that define the roi boundary
             %                 'type',   'boundary');... [str] specify the type of roi {'boundary', 'point'}
             
-            %obj.roi = getRegion([obj.imx obj.imy], 'default');
+            obj.roi = getRegion([obj.imx obj.imy], 'default');
             
             obj.roiStats = struct('savg',   [], ... [dbl] average spectrum in roi
                 'sstd',   [], ... [dbl] standard dev of savg
@@ -529,18 +530,18 @@ classdef hyperim
             obj.isUnmixed = false;
         end
         
-        function obj = getAmatrix(obj, spec, filetype)
+        function obj = getAmatrix(obj, app)
             %% getAmatrix - parses the basis spectra to match the image spectral
             % resolution (if required) and retuns d A matrix
     
             num_wl   = length(obj.wl);
-            num_spec = length(spec);
+            num_spec = length(app.spec);
 
-            switch filetype
+            switch app.expt.filetype
                 case {'hyper', 'maestro'}
 
                     % Basis spectra already at correct resolution
-                    obj.A = [spec.data];
+                    obj.A = [app.spec.data];
 
                 case {'envi', 'oir', 'oir-tiff', 'czi', 'slice'}
 
@@ -549,7 +550,7 @@ classdef hyperim
                     for i = 1:num_spec
 
                         % Interp the basis spectra at the image wavelength resolution
-                        newspec = interp1(spec(i).wl, spec(i).data, obj.wl, 'pchip', 'extrap');
+                        newspec = interp1(app.spec(i).wl, app.spec(i).data, obj.wl, 'pchip', 'extrap');
 
                         % Check if interpolation worked
                         if any(isinf(newspec)) || any(isnan(newspec))
@@ -566,5 +567,214 @@ classdef hyperim
             % Normalize
             obj.A = obj.A ./ repmat(max(obj.A), [size(obj.A, 1), 1]);
         end
+        
+        function obj = preProcessImage(obj, app)
+            
+            %%%%% Pre analysis
+            % Do these things to the image *before* unmixing
+            
+            % Over-sampling correction
+            if app.SamplingCorrectionMenu.Checked
+                obj.cube   = sampling_correction(obj.cube,   app.cfg.compress);
+                obj.satpix = sampling_correction(obj.satpix, app.cfg.compress);
+                
+                % Update image size
+                [obj.imx, obj.imy, ~] = size(obj.cube);
+                
+                % This changes the image size so reset the roi
+                obj.roi = getRegion(size(obj.cube), 'fibercore');
+            end
+            
+            % Blur
+            if app.GaussianBlurMenu.Checked
+                for i = 1:length(obj.wl)
+                    obj.cube(:, :, i) = imfilter(obj.cube(:, :, i), app.cfg.gaussfilt, 'replicate');
+                end
+            end
+            
+            % Fiber filter
+            if app.ApplyFiberImageFilterMenu.Checked
+                obj.cube = obj.cube .* repmat(app.cfg.fiber_mask, [1 1 length(obj.wl)]);
+            end
+            
+            % Flatfield correction
+            if app.ApplyFlatfieldCorrectionMenu.Checked
+                if isempty(app.cfg.ff_correction)
+                    cfg.ff_correction = ffcorrect(obj, app.cfg);
+                end
+                obj.cube = obj.cube .* cfg.ffcorrection;
+            end
+            
+            % Smoothing
+            if app.SpectralSmoothingMenu.Checked
+                % Specify range of spectra to fit
+                % TODO: move 'specrange' to default setting
+                specrange = 1:length(obj.wl);
+                obj.cube = smoothSpectra(obj.wl, obj.cube, specrange);
+            end
+            
+            % Saturated pixels
+            if app.IncludeSaturatedPixelsMenu.Checked
+                obj.cube = obj.cube .* repmat(obj.satpix, [1 1 length(obj.wl)]);
+            end
+            
+            % Normalize Cube
+            obj.cube = mat2gray(obj.cube);
+            
+            % Pseudocolor the spectral image (normalize)
+            % colors = squeeze(spectrumRGB(im.wl));
+            
+            % Pseudocolor by custom color map
+            colors = jet(length(obj.wl));
+            obj.colorims.cube = colorImage(obj.cube, colors, true);
+            
+            obj.disp = obj.cube; 
+            
+        end
+        
+        function [obj, flag] = unmixImage(obj, cfg)
+            % Compute A matrix
+            % im.A = getAmatrix(spec, im.wl, filetype);
+            
+            flag = [];
+            try
+                [obj.x, obj.r, obj.evalTime] = parspecdecomp(obj.A, obj.cube, cfg.algorithm, cfg.gpuIdx);
+            catch flag
+                return;
+            end
+            
+        end
+        
+        function obj = postProcessImage(obj, app)
+            
+            %%%%% Post analsys
+            % Do these things *after* unmixing
+            
+            % Calculate Reduced Chi-Squared
+            % Degrees of freedom (# observations - # fitted params)
+            dof = length(obj.wl) - length(app.spec);
+            
+            switch app.expt.filetype
+                case 'hyper'
+                    % Poisson Factor (hyperCFME is super-possonian, measured with sigvar.m)
+                    % p-factor is usually on the order of 10
+                    pfactor = 2;
+                    
+                    % Sigma is the uncertainty of the measurement and dof is the number of
+                    % degrees of freedom of system
+                    sigma = sqrt(pfactor * obj.cube);
+                    
+                    % Reduced Chi-Squared. Defined as the sum of the residual squared
+                    % divided by the varience (uncertainty squared), all over the dof of
+                    % the system.
+                    temp = (obj.r ./ sigma).^2;
+                    
+                    % Zero valued pixels in the image will give zeros for sigma, which
+                    % makes redchi inf. Here, set these inf's to zero.
+                    temp(isinf(temp)) = 0;
+                    temp(isnan(temp)) = 0;
+                    obj.redchisq = sum(temp, 3 ) / dof;
+                    
+                    
+                case {'envi', 'maestro', 'oir', 'oir-tiff', 'czi', 'macrotome'}
+                    
+                    % Assume uncertainty is +/- 10%
+                    % sigma = (0.1 .* handles.cube{n});
+                    
+                    % Assume sigma = 1;
+                    sigma = ones(size(obj.r));
+                    obj.redchisq = sum((obj.r ./ sigma).^2, 3) / dof;
+            end
+            
+            % Miscellaneous - these are specific to hyperCFME images and are usually
+            % not needed, so they aren't built in to the gui, but toggle the if
+            % statements to include/exculde them in the analysis
+            
+            % Current spectra in A matrix
+            names = {app.spec.name};
+            
+            % Define specific spectra to analyze
+            % names_to_edit = {'AF633', 'AF647', 'AF660', 'AF680', 'AF700'};
+            
+            if false
+                % Apply threshold levels to cut out noise
+                % EGFR shows up in no-tumor control from spectral bleed-over /
+                % overfitting.
+                tld = [ 0.0009, ... AF633 - Transferrin
+                    0.0010, ... AF647 - MUC16
+                    0.0039, ... AF660 - CD44
+                    0.0020, ... AF680 - CD45
+                    0.0018]; %  AF700 - EGFR
+                
+                for i = 1:length(names_to_edit)
+                    k   = strcmp(names, names_to_edit(i));
+                    map = x(:,:,k);
+                    map( map < tld(i) ) = 0;
+                    x(:,:,k) = map;
+                end
+                
+            end
+            
+            if false
+                % Brightness calibration map
+                % Ratios are from 5-color experiment
+                lvl = [ 2.1258, ... AF633 - Transferrin
+                    1.0000, ... AF647 - MUC16
+                    8.0797, ... AF660 - CD44
+                    1.1578, ... AF680 - CD45
+                    1.7165]; %  AF700 - EGFR
+                
+                for i = 1:length(names_to_edit)
+                    k   = strcmp(names, names_to_edit(i));
+                    x(:,:,k) = x(:,:,k) * lvl(i);
+                    
+                end
+                
+            end
+            
+            
+            if false
+                % CD45 - inflamation mask
+                i1  = strcmp(names, 'AF680-7-14-20');
+                mask = x(:, :, i1) > 0.1 * max(max( x(:, :, i1) ));
+                
+                toMask = {'AF633-v2-7-14-20'; 'AF660-7-14-20'; 'AF700-v3-7-14-20'};
+                [~, ~, maskidx] = intersect(toMask, names, 'stable');
+                
+                mask = repmat(mask, [1 1 numel(maskidx)]);
+                
+                % Apply mask
+                x(:, :, maskidx) = x(:, :, maskidx) .* ~mask;
+                
+                for i = 1:num_spec
+                    x(:, :, i) = imfilter(x(:, :, i), cfg.gaussfilt, 'replicate');
+                end
+            end
+            
+            
+            if false
+                %Adjust EGFR channel
+                i2  = strcmp(names, 'AF700-3');
+                x(:, :, i2) = x(:, :, i2) * 2;
+                
+                %     % Adjust CD44
+                %     i2  = strcmp(names, 'AF660');
+                %     x(:, :, i2) = x(:, :, i2) * 0.7;
+            end
+            
+            % Saturated pixel mask on the output
+            if app.IncludeSaturatedPixelsMenu.Checked
+                obj.x = obj.x .* repmat(obj.satpix, [1 1 num_spec]);
+                obj.redchisq = obj.redchisq .* obj.satpix;
+            end
+            
+            % Pseudocolor basis images
+            colors = rgb({app.spec.color});
+            obj.colorims.basis = colorImage(obj.x, colors, true);
+            
+            % Image is now unmixed (or skipped)
+            obj.isUnmixed = true;            
+        end
+        
     end
 end

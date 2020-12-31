@@ -77,9 +77,10 @@ elseif nargin == 3
     
 elseif nargin == 4
     % Check for compatible GPU
-    if gpuDeviceCount == 0
+    if strcmp(CONFIG, 'gpu-fnnls') && gpuDeviceCount == 0
         error('No compatible GPU on this machine.')
     end
+    
 end
 
 % System size
