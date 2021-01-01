@@ -27,7 +27,8 @@ classdef hyperim
         roiStats  % [struct] statistics of the image defined by the roi
         wl % [dbl] vector of wavelength that define cube (can be different from basis spectra)
         phasor % [struct] phasor analysis variables
-        filt  % [logical] vector used to filter wavlength channels if needed 
+        filt  % [logical] vector used to filter wavlength channels if needed
+        tmask % [logical] mask of size(x) to filter images using threshold values
     end
     
     methods (Access = public)    
@@ -643,6 +644,9 @@ classdef hyperim
                 return;
             end
             
+            % Image is now unmixed (or skipped)
+            obj.isUnmixed = true; 
+            
         end
         
         function obj = postProcessImage(obj, app)
@@ -696,6 +700,7 @@ classdef hyperim
             % Define specific spectra to analyze
             % names_to_edit = {'AF633', 'AF647', 'AF660', 'AF680', 'AF700'};
             
+            % TODO: organize and build in options for post analysis int App
             if false
                 % Apply threshold levels to cut out noise
                 % EGFR shows up in no-tumor control from spectral bleed-over /
@@ -772,9 +777,61 @@ classdef hyperim
             colors = rgb({app.spec.color});
             obj.colorims.basis = colorImage(obj.x, colors, true);
             
-            % Image is now unmixed (or skipped)
-            obj.isUnmixed = true;            
+            
         end
         
+        function im = colorImage(obj, app, m, opt)
+            %% colorImage - convert intensity image into (imx x imy x 3)
+            % rgb image for display
+            
+            % Initialize
+            im = zeros(obj.imx, obj.imy, 3);
+
+            switch opt
+                case 'x'                    
+                    for i = 1:length(m)
+                        im = im + ...
+                            repmat(reshape(rgb(app.spec(m(i)).color), [1 1 3]), [obj.imx obj.imy]) .* ...
+                            repmat(obj.x(:, :, m(i)) .* obj.tmask(:, :, m(i)), [1 1 3]);
+                    end
+                case 'cube'
+                    for i = 1:length(m)
+                        im = im + ...
+                            repmat(reshape(rgb(app.spec(m(i)).color), [1 1 3]), [obj.imx obj.imy]) .* ...
+                            repmat(obj.cube(:, :, m(i)), [1 1 3]);
+                    end
+            end
+            
+%             % Initialize
+%             obj.colorIms = struct('im',    [], ... [dbl] (imx x imy x 3) rgb image
+%                 'rgb',   []);... [dbl] rgb trplet of colorname
+%                 
+%             % Convert color names to rgb triplets
+%             rgbvec = reshape(rgbvec, [1 app.cfg.num_spec 3]);
+%             
+%             % Make pseudo-color image
+%             for i = 1:app.cfg.num_spec
+%                 
+%                 % Multiply the rgb vector map by the image to pseudocolor
+%                 obj.colorIms(i).im = repmat(rgbvec(1, i, :), [obj.imx obj.imy]) .* ...
+%                     repmat(obj.x(:, :, i) .* obj.tmask(:, :, i), [1 1 3]);
+%                 
+%                 obj.colorIms(i).rgb = reshape(rgbvec(1, i, :), [1 3]);
+%                 
+%             end
+%             
+%             
+%             switch opt
+%                 case 'composite'
+%                     specfilt = logical([app.spec.filt]); % In case filt was not a bool
+%                     im = sum(cat(4, app.img(n).colorims.basis(specfilt).im), 4) ...
+%                         * app.BrightnessEditField.Value;
+%                 case 'basis'
+%                     
+%             end
+            
+            
+            
+        end
     end
 end

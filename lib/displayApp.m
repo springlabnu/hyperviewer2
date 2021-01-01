@@ -33,7 +33,7 @@ if ~app.img(n).isLoaded
     % Inform user
     app.msgbox.Text = app.msg.loadingcube;
     
-    [app.img(n), ME] = app.img.getImageCube(app.expt.filetype);
+    [app.img(n), ME] = app.img(n).getImageCube(app.expt.filetype);
     
     % Update filename before checking the error
     app.DirectoryListBox.Items = {app.img.filename};
@@ -74,17 +74,20 @@ if ~app.img(n).isUnmixed
     app.msgbox.Text = app.msg.unmixing; drawnow;
     
     % Unmix image
-    app.img(n) = app.img.preProcessImage(app);
+    app.img(n) = app.img(n).preProcessImage(app);
     
-    app.img(n) = app.img.getAmatrix(app);
+    app.img(n) = app.img(n).getAmatrix(app);
     
-    [app.img(n), ME] = app.img.unmixImage(app.cfg);
+    [app.img(n), ME] = app.img(n).unmixImage(app.cfg);
     if ~isempty(ME)
         app.msgbox.Text = app.msg.nogpu;
         return;
     end
     
-    app.img(n) = app.img.postProcessImage(app);
+    app.img(n) = app.img(n).postProcessImage(app);
+    
+    % Initialize threshold mask
+    app.img(n).tmask = true(size(app.img(n).x));
     
     % Get ROI stats
     app.img(n).roiStats = getRegionStats(app.img(n), app.img(n).roi.mask);
@@ -109,17 +112,27 @@ else
     roiIdx = n;
 end
 
+% Threshold mask
+app.img(n).tmask(:, :, m) = app.img(n).x(:, :, m) >= app.cfg.threshold(m);
+
+% Compute 
+
+% im = app.img(n).colorImage(app, m);
 
 % Display selcted image on axes1
 if isempty(varargin) || any(strcmp(varargin, 'ax1'))
     
-    cla(app.UIAxes1);
+    cla(app.UIAxes1); hold(app.UIAxes1, 'on');
     switch app.SelectDisplayImageDropDown.Value
         case 1 % Basis spectra composite image
             
-            specfilt = logical([app.spec.filt]); % In case filt was not a bool
-            im = sum(cat(4, app.img(n).colorims.basis(specfilt).im), 4) ...
-                * app.BrightnessEditField.Value; % / sum(specfilt);
+            filt = 1:app.cfg.num_spec;
+            filt = filt(logical([app.spec.filt])); % In case filt was not a bool
+            
+            im = app.img(n).colorImage(app, filt, 'x') * app.BrightnessEditField.Value;
+            
+%             im = sum(cat(4, app.img(n).colorims.basis(specfilt).im), 4) ...
+%                 * app.BrightnessEditField.Value; % / sum(specfilt);
             
             % Display composite image
             imshow(im, 'Parent', app.UIAxes1);
@@ -128,9 +141,11 @@ if isempty(varargin) || any(strcmp(varargin, 'ax1'))
             
         case 2 % Raw image
             
+            filt = 1:length(app.img(n).filt);
+            filt = filt([app.img(n).filt]);
             % Raw image is normalized so don't multiply by brightness
-            wlfilt = [app.img(n).filt];
-            im = sum(cat(4, app.img(n).colorims.cube(wlfilt).im), 4) / sum(wlfilt);
+            
+            im = app.img(n).colorImage(app, filt, 'cube');
             
             % Adjust contrast
             im = imadjust(im, stretchlim(im, 0), []);
@@ -143,14 +158,12 @@ if isempty(varargin) || any(strcmp(varargin, 'ax1'))
         case 3 % Chi-squared map
             
             % Display Red. Chi-Squared Map
-            imagesc(app.img(n).redchisq, 'hittest', 'off', 'Parent', app.UIAxes1);
+            imagesc(app.img(n).redchisq, 'Parent', app.UIAxes1); ... 'hittest', 'off');
             axis(app.UIAxes1, 'tight'); 
             colorbar(app.UIAxes1);
             app.UIAxes1.XTickLabel = [];
             app.UIAxes1.YTickLabel = [];
     end
-    
-    hold(app.UIAxes1, 'on');
     
     % Display ROIs
     for a = 1:length(app.img(roiIdx).roi)
@@ -177,7 +190,7 @@ end
 if isempty(varargin) || any(strcmp(varargin, 'ax2'))
 
     cla(app.UIAxes2);
-    im = sum(cat(4, app.img(n).colorims.basis(m).im), 4) * app.BrightnessEditField.Value;
+    im = app.img(n).colorImage(app, m, 'x') * app.BrightnessEditField.Value;
     imshow(im, 'Parent', app.UIAxes2);
     axis(app.UIAxes2, 'tight'); 
     colorbar(app.UIAxes2, 'off');
@@ -196,7 +209,7 @@ if isempty(varargin) || any(strcmp(varargin, 'ax3'))
     scolors = {app.spec.color};
     if any(strcmp(scolors, 'White'))
         % Turn any 'White' spectra to Grey for visibility
-        scolors{strcmp(scolors, 'White')} = {'Grey'};
+        [scolors{strcmp(scolors, 'White')}] = deal('Grey');
     end
     
     % Display axes3
@@ -289,6 +302,10 @@ if isempty(varargin) || any(strcmp(varargin, 'ax3'))
             
             % Display
             histogram(app.UIAxes3, data);
+            
+            % Threshold level
+            xline(app.UIAxes3, app.cfg.threshold(m), 'Color', 'Red', 'LineWidth', 2);
+           
             if numel(m) == 1
                 t = sprintf('Histogram of Basis Map - %s', slabels{m});
             else
