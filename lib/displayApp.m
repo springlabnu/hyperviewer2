@@ -281,8 +281,7 @@ if isempty(varargin) || any(strcmp(varargin, 'ax3'))
             app.UIAxes3.YLim = [0 inf];
             
             if strcmp(app.ShowLegendMenu.Checked, 'on')
-                legend(app.UIAxes3, legendNames, 'Location', 'best');
-                legend('boxon');
+                legend(app.UIAxes3, legendNames, 'Location', 'bestoutside');
             else
                 legend(app.UIAxes3, 'off');
             end
@@ -351,7 +350,8 @@ if isempty(varargin) || any(strcmp(varargin, 'ax3'))
             heatmap = heatscatter(T(1,:)', T(2,:)');
             
             % Scatter plot with heatmap
-            app.scat_pts = scatter(app.UIAxes3, T(1,:), T(2,:), 10, heatmap, '.'); hold on;
+            app.scat_pts = scatter(app.UIAxes3, T(1,:), T(2,:), 10, heatmap, '.');
+            hold(app.UIAxes3, 'on');
             
             % Plot pixels in roi
             for a = 1:length(app.img(roiIdx).roi)
