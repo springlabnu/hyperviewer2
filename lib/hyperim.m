@@ -626,8 +626,8 @@ classdef hyperim
             % colors = squeeze(spectrumRGB(im.wl));
             
             % Pseudocolor by custom color map
-            colors = jet(length(obj.wl));
-            obj.colorims.cube = colorImage(obj.cube, colors, true);
+%             colors = jet(length(obj.wl));
+%             obj.colorims.cube = colorImage(obj.cube, colors, true);
             
             obj.disp = obj.cube; 
             
@@ -680,8 +680,8 @@ classdef hyperim
                     obj.redchisq = sum(temp, 3 ) / dof;
                     
                     
-                case {'envi', 'maestro', 'oir', 'oir-tiff', 'czi', 'macrotome'}
-                    
+                % case {'envi', 'maestro', 'oir', 'oir-tiff', 'czi', 'macrotome'}
+                otherwise  
                     % Assume uncertainty is +/- 10%
                     % sigma = (0.1 .* handles.cube{n});
                     
@@ -774,8 +774,8 @@ classdef hyperim
             end
             
             % Pseudocolor basis images
-            colors = rgb({app.spec.color});
-            obj.colorims.basis = colorImage(obj.x, colors, true);
+%             colors = rgb({app.spec.color});
+%             obj.colorims.basis = colorImage(obj.x, colors, true);
             
             
         end

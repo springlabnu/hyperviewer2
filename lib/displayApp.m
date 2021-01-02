@@ -131,9 +131,6 @@ if isempty(varargin) || any(strcmp(varargin, 'ax1'))
             
             im = app.img(n).colorImage(app, filt, 'x') * app.BrightnessEditField.Value;
             
-%             im = sum(cat(4, app.img(n).colorims.basis(specfilt).im), 4) ...
-%                 * app.BrightnessEditField.Value; % / sum(specfilt);
-            
             % Display composite image
             imshow(im, 'Parent', app.UIAxes1);
             axis(app.UIAxes1, 'tight'); 
@@ -143,8 +140,8 @@ if isempty(varargin) || any(strcmp(varargin, 'ax1'))
             
             filt = 1:length(app.img(n).filt);
             filt = filt([app.img(n).filt]);
+           
             % Raw image is normalized so don't multiply by brightness
-            
             im = app.img(n).colorImage(app, filt, 'cube');
             
             % Adjust contrast
@@ -304,7 +301,7 @@ if isempty(varargin) || any(strcmp(varargin, 'ax3'))
             histogram(app.UIAxes3, data);
             
             % Threshold level
-            xline(app.UIAxes3, app.cfg.threshold(m), 'Color', 'Red', 'LineWidth', 2);
+            xline(app.UIAxes3, app.cfg.threshold(m(1)), 'Color', 'Red', 'LineWidth', 2);
            
             if numel(m) == 1
                 t = sprintf('Histogram of Basis Map - %s', slabels{m});
