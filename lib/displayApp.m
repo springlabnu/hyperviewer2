@@ -184,6 +184,9 @@ if isempty(varargin) || any(strcmp(varargin, 'ax1'))
     
 end
 
+% Give the image context menu properties
+app.UIAxes1.Children(end, 1).ContextMenu = app.ROIContextMenu;
+
 % Display the selected basis image(s) on axes2
 if isempty(varargin) || any(strcmp(varargin, 'ax2'))
 
@@ -195,6 +198,8 @@ if isempty(varargin) || any(strcmp(varargin, 'ax2'))
     
 end
 
+% Give the image context menu properties
+app.UIAxes2.Children(end, 1).ContextMenu = app.ROIContextMenu;
 
 if isempty(varargin) || any(strcmp(varargin, 'ax3'))
     
