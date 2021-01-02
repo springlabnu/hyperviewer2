@@ -18,13 +18,13 @@ function [x, r, t] = parspecdecomp(A, b, CONFIG, gpuCount)
 %         'lsqnonneg' the standard active-set method (ref 2)
 %         'gpu-fnnls' FNNLS implemented on a compatible GPU (ref 3)
 %
-%   [x, r, t] = PARSPECDECOMP(A, b, 'gpu-fnnls', gpuCount) deploys the NNLS
+%   x = PARSPECDECOMP(A, b, 'gpu-fnnls', gpuCount) deploys the NNLS
 %   algorithm to a compatible CUDA-enabled GPU. To check for compatible
 %   devices, run 'gpuDevice' in the command window. 
 %
 %   [x, r, t] = PARSPECDECOMP(...) also returns the residuals  r = b - A*x 
 %   where r is of size(b), and the total computation time t to compute the
-%   solution x. 
+%   solution x in milliseconds. 
 % 
 %   Use with Parallel Computing Toolbox:
 %       - Both LSQNONNEG and FNNLS functions are parfor compatible. A
@@ -119,7 +119,7 @@ switch CONFIG
                 end
             end
         end
-        t = toc;
+        t = toc * 1000; % convert to ms
         
     case 'fnnls'
         % Use FNNLS
@@ -141,7 +141,7 @@ switch CONFIG
                 [x_temp(:, i), ~] = fnnls(AtA, Atb(:,i));
             end
         end
-        t = toc;
+        t = toc * 1000; % convert to ms
         
     case 'gpu-fnnls'
         

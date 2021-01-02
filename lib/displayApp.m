@@ -113,8 +113,9 @@ else
 end
 
 % Threshold mask
-app.img(n).tmask(:, :, m) = app.img(n).x(:, :, m) >= app.cfg.threshold(m);
-
+for i = 1:length(m)
+    app.img(n).tmask(:, :, m(i)) = app.img(n).x(:, :, m(i)) >= app.cfg.threshold(m(i));
+end
 % Compute 
 
 % im = app.img(n).colorImage(app, m);
