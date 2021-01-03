@@ -795,11 +795,14 @@ classdef hyperim
                             repmat(obj.x(:, :, m(i)) .* obj.tmask(:, :, m(i)), [1 1 3]);
                     end
                 case 'cube'
+                                        
                     for i = 1:length(m)
                         im = im + ...
-                            repmat(reshape(rgb(app.spec(m(i)).color), [1 1 3]), [obj.imx obj.imy]) .* ...
+                            repmat(reshape(spectrumRGB(obj.wl(i)), [1 1 3]), [obj.imx obj.imy]) .* ...
                             repmat(obj.cube(:, :, m(i)), [1 1 3]);
                     end
+                    
+                    im = im/length(m);
             end
             
 %             % Initialize

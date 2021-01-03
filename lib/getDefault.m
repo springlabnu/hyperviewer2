@@ -200,6 +200,16 @@ switch type
             otherwise
                 flag = true;
         end
+        
+    case 'parpool'
+        
+        switch examp
+            case 'runOnStartup'
+                out = 'Yes'; % Automatically start a parpool session
+                % out = 'No'; % Do not start a parpool session
+                % out = 'UserDecides'; % Ask user via popup box
+        end
+        
                 
     otherwise
         % Type not found
