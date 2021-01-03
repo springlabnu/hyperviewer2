@@ -803,38 +803,7 @@ classdef hyperim
                     end
                     
                     im = im/length(m);
-            end
-            
-%             % Initialize
-%             obj.colorIms = struct('im',    [], ... [dbl] (imx x imy x 3) rgb image
-%                 'rgb',   []);... [dbl] rgb trplet of colorname
-%                 
-%             % Convert color names to rgb triplets
-%             rgbvec = reshape(rgbvec, [1 app.cfg.num_spec 3]);
-%             
-%             % Make pseudo-color image
-%             for i = 1:app.cfg.num_spec
-%                 
-%                 % Multiply the rgb vector map by the image to pseudocolor
-%                 obj.colorIms(i).im = repmat(rgbvec(1, i, :), [obj.imx obj.imy]) .* ...
-%                     repmat(obj.x(:, :, i) .* obj.tmask(:, :, i), [1 1 3]);
-%                 
-%                 obj.colorIms(i).rgb = reshape(rgbvec(1, i, :), [1 3]);
-%                 
-%             end
-%             
-%             
-%             switch opt
-%                 case 'composite'
-%                     specfilt = logical([app.spec.filt]); % In case filt was not a bool
-%                     im = sum(cat(4, app.img(n).colorims.basis(specfilt).im), 4) ...
-%                         * app.BrightnessEditField.Value;
-%                 case 'basis'
-%                     
-%             end
-            
-            
-            
+            end          
         end
     end
 end

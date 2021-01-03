@@ -37,6 +37,10 @@ switch type
                 
         end
         
+    case 'BSL'
+        % Return path to default BSL mat file.
+        out = fullfile('lib','BSL.mat');
+        
     case 'spectra'
         % Default spectra to load for demos and filetypes
         % Return a cell array of strings listing the spectra names

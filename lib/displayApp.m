@@ -13,6 +13,11 @@ function displayApp(app, varargin)
 % If no experiment, do nothing
 if ~app.expt.loaded
     app.msgbox.Text = app.msg.loadexpt;
+    
+    % Display BSL if selected
+    if app.ChooseAnalysisDropDown.Value == '1'
+        displayAnalysis(app, app.ChooseAnalysisDropDown.Value);
+    end
     return;
 end
 
@@ -91,6 +96,11 @@ if ~app.img(n).isUnmixed
     
     % Get ROI stats
     app.img(n).roiStats = getRegionStats(app.img(n), app.img(n).roi.mask);
+    
+    % If unmixing - trigger switch to spectral fit if still on BSL option
+    if app.ChooseAnalysisDropDown.Value == '1'
+        app.ChooseAnalysisDropDown.Value = '2';
+    end
 end
 
 app.msgbox.Text = 'Finalizing Images... Please Wait.';
@@ -116,11 +126,8 @@ end
 for i = 1:length(m)
     app.img(n).tmask(:, :, m(i)) = app.img(n).x(:, :, m(i)) >= app.cfg.threshold(m(i));
 end
-% Compute 
 
-% im = app.img(n).colorImage(app, m);
-
-% Display selcted image on axes1
+%%  Display UIAxes1
 if isempty(varargin) || any(strcmp(varargin, 'ax1'))
     
     cla(app.UIAxes1); hold(app.UIAxes1, 'on');
@@ -142,11 +149,10 @@ if isempty(varargin) || any(strcmp(varargin, 'ax1'))
             filt = 1:length(app.img(n).filt);
             filt = filt([app.img(n).filt]);
            
-            % Raw image is normalized so don't multiply by brightness
             im = app.img(n).colorImage(app, filt, 'cube');
             
             % Adjust contrast
-            im = imadjust(im, stretchlim(im, 0), []);
+            im = imadjust(im, stretchlim(im, 0), []) * app.BrightnessEditField.Value;
             
             % Display raw image
             imshow(im, 'Parent', app.UIAxes1);
@@ -187,7 +193,8 @@ end
 % Give the image context menu properties
 app.UIAxes1.Children(end, 1).ContextMenu = app.ROIContextMenu;
 
-% Display the selected basis image(s) on axes2
+%%  Display UIAxes2
+
 if isempty(varargin) || any(strcmp(varargin, 'ax2'))
 
     cla(app.UIAxes2);
@@ -201,192 +208,16 @@ end
 % Give the image context menu properties
 app.UIAxes2.Children(end, 1).ContextMenu = app.ROIContextMenu;
 
+%%  Display UIAxes3
+
+% Display analysis data on the UIAxes3
 if isempty(varargin) || any(strcmp(varargin, 'ax3'))
     
-    % Initialize vars needed for multiple axes3 options
-    A  = app.img(n).A;
-    wl = app.img(n).wl;
+    displayAnalysis(app, app.ChooseAnalysisDropDown.Value);
     
-    % Set white color to grey for plotting
-    slabels = {app.spec.label};
-    scolors = {app.spec.color};
-    if any(strcmp(scolors, 'White'))
-        % Turn any 'White' spectra to Grey for visibility
-        [scolors{strcmp(scolors, 'White')}] = deal('Grey');
-    end
-    
-    % Display axes3
-    cla(app.UIAxes3); 
-    hold(app.UIAxes3, 'on');
-    app.UIAxes3.YScale = 'linear';
-    
-    switch app.ChooseAnalysisDropDown.Value
-        
-        case 1 % Spectral Fit
-            
-            % Intialize data
-            savg = app.img(n).roiStats(end).savg;
-            sstd = app.img(n).roiStats(end).sstd;
-            xavg = app.img(n).roiStats(end).xavg;
-            xstd = app.img(n).roiStats(end).xstd;
-            
-            % Convert x to percentages
-            xavg_norm = 100 * xavg / sum(xavg);
-            xstd_norm = 100 * xstd;
-            
-            % Avg. Spectrum in ROI
-            if strcmp(app.ShowErrorBarsMenu.Checked, 'on')
-                % Plot error bars, but only if averaged spectra
-                % Point ROI's do not have error bars...
-                if isempty(sstd)
-                    plot(app.UIAxes3, wl, savg, 'k');
-                else
-                    errorbar(app.UIAxes3, wl, savg, sstd, 'k');
-                end
-            else
-                % Regular ol' plot
-                plot(app.UIAxes3, wl, savg, 'k');
-            end
-            legendNames{1} = 'ROI Avg. Spec.';
-            
-            % Fit A * x
-            plot(app.UIAxes3, wl, A*xavg, 'k--');
-            legendNames{2} = 'Fit A*x';
-            
-            % Linewidth of each spectrum (the selected spectra get bolded)
-            linewidth    = ones(app.cfg.num_spec, 1);
-            linewidth(m) = 2;
-            
-            % Made 2 plots already, count the rest
-            j = 3;
-            for i = 1:app.cfg.num_spec
-                if xavg(i) > 0 % Only plot if spectra is non-zero
-                    
-                    % Plot idv. spectra weight by unmixing coef.
-                    plot(app.UIAxes3, wl, xavg(i)*A(:,i), 'Color', rgb(scolors{i}),...
-                        'LineWidth', linewidth(i));
-                    
-                    % Keep track of legend
-                    if true % isempty(xstd_norm)
-                        legendNames{j} = sprintf('%s - %3.2f%%', ...
-                            slabels{i}, xavg_norm(i));
-                    else
-                        legendNames{j} = sprintf('%s - %3.2f +/- %3.2f%%', ...
-                            slabels{i}, xavg_norm(i), xstd_norm(i));
-                    end
-                    j = j + 1;
-                end
-            end
-            
-            app.UIAxes3.Subtitle.String = ['ROI Composition \chi^2_{avg}', ...
-                    sprintf('= %4.3e', app.img(n).roiStats(end).mchisq)];
-            app.UIAxes3.XLabel.String = 'Wavelength (nm)';
-            app.UIAxes3.YLabel.String = 'Intensity (a.u.)';
-            app.UIAxes3.XLim = [min(wl) max(wl)];
-            app.UIAxes3.YLim = [0 inf];
-            
-            if strcmp(app.ShowLegendMenu.Checked, 'on')
-                legend(app.UIAxes3, legendNames, 'Location', 'bestoutside');
-            else
-                legend(app.UIAxes3, 'off');
-            end
-            
-        case 2 % Histogram
-            
-            % In case multiple spectra are selected
-            roi = repmat(app.img(n).roi.mask, [1 1 length(m)]);
-            
-            % Mask data
-            data = app.img(n).x(:, :, m) .* roi;
-            
-            % Get rid of zeros
-            data( data == 0 ) = [];
-            
-            % Display
-            histogram(app.UIAxes3, data);
-            
-            % Threshold level
-            xline(app.UIAxes3, app.cfg.threshold(m(1)), 'Color', 'Red', 'LineWidth', 2);
-           
-            if numel(m) == 1
-                t = sprintf('Histogram of Basis Map - %s', slabels{m});
-            else
-                t = sprintf('Histogram of %d Basis Maps', numel(m));
-            end
-            app.UIAxes3.Subtitle.String = t;
-            app.UIAxes3.XLabel.String = 'Intensity - 10-bit scale';
-            app.UIAxes3.YLabel.String ='Counts';
-            app.UIAxes3.XLim = [0 1];
-            app.UIAxes3.YLim =[0 inf];
-            legend(app.UIAxes3, 'off');
-            
-        case {3, 4} % Phasor plots
-            
-            % Reshape image and mask into columns of pixels
-            pixels = permute(app.img(n).disp, [3 2 1]);
-            %         roi    = permute(roi, [3 2 1]);
-            pixels = pixels(:,:);
-            %         roi    = roi(:,:);
-            
-            % Mask 2D image
-            %         pixels = pixels(:, logical(roi));
-            
-            if app.ChooseAnalysisDropDown.Value == 3 % Fourier
-                
-                p     = app.cfg.phasor.f;
-                T     = fftCoefs(pixels, p:(p+1));
-                Tspec = fftCoefs(A,      p:(p+1));
-                
-                xlab = 'G'; ylab = 'S';
-                titlestr = sprintf('Fourier Phasor plot, n = %d', app.cfg.phasor.f);
-                
-            elseif app.ChooseAnalysisDropDown.Value == 4 % Chebyshev
-                
-                p     = app.cfg.phasor.c;
-                T     = fctCoefs(pixels, p:(p+1));
-                Tspec = fctCoefs(A,      p:(p+1));
-                
-                xlab = 'U_{n}'; ylab = 'U_{n+1}';
-                titlestr = sprintf('Chebyshev Phasor plot, n = %d', app.cfg.phasor.c);
-                
-            end
-            
-            % Calculate heatmap colorscheme for scatter plot
-            heatmap = heatscatter(T(1,:)', T(2,:)');
-            
-            % Scatter plot with heatmap
-            app.scat_pts = scatter(app.UIAxes3, T(1,:), T(2,:), 10, heatmap, '.');
-            hold(app.UIAxes3, 'on');
-            
-            % Plot pixels in roi
-            for a = 1:length(app.img(roiIdx).roi)
-                roi = app.img(roiIdx).roi(a).mask;
-                roi = permute(roi, [3 2 1]);
-                roi = roi(:,:);
-                
-                if sum(roi) < numel(roi)
-                    app.scat_basis = scatter(app.UIAxes3, T(1, logical(roi)), T(2, logical(roi)), 10, app.cfg.roiColors{a}, '.');
-                end
-                
-            end
-            % Add basis spectra
-            app.scat_basis = scatter(app.UIAxes3, Tspec(1,:), Tspec(2,:), 100, rgb(scolors), 'filled');
-            app.UIAxes3.XLimMode = 'auto';
-            app.UIAxes3.YLimMode = 'auto';
-            app.UIAxes3.XLabel.String = xlab;
-            app.UIAxes3.YLabel.String = ylab;
-            app.UIAxes3.Subtitle.String = titlestr;
-            
-            if strcmp(app.ShowLegendMenu.Checked, 'on')
-                legend(app.UIAxes3, {'Phasor Points', 'Basis Spectra'}, 'Location', 'best');
-                colorbar(app.UIAxes3, 'on');
-            else
-                legend(app.UIAxes3, 'off');
-                colorbar(app.UIAxes3, 'off');
-            end        
-    end
 end
 
+%% Post processing and output
 % TODO; move this code somewhere else
 % Format spec roi for prism
 if false
@@ -450,3 +281,255 @@ end
 
 app.msgbox.Text = 'Ready.';
 drawnow;
+
+end
+
+function displayAnalysis(app, opt)
+
+% Display axes3
+cla(app.UIAxes3);
+hold(app.UIAxes3, 'on');
+app.UIAxes3.YScale = 'linear';
+
+if opt ~= '1'
+    % Initialize vars needed for multiple axes3 options
+    n = app.state.img;
+    m = app.state.spec;
+
+    A  = app.img(n).A;
+    wl = app.img(n).wl;
+    
+    % Set white color to grey for plotting
+    slabels = {app.spec.label};
+    scolors = {app.spec.color};
+    if any(strcmp(scolors, 'White'))
+        % Turn any 'White' spectra to Grey for visibility
+        [scolors{strcmp(scolors, 'White')}] = deal('Grey');
+    end
+    
+end
+
+switch opt
+    
+    case '1' % BSL
+        
+        if ~isempty(app.lib)
+            
+            j = app.state.bsl;
+            
+            % Plot BSL table cell selections
+            for i = 1:length(j)
+                if app.TheoreticalMenu.Checked && ~isempty(app.lib(j(i)).tspec)
+                    % Emission
+                    if app.EmissionMenu.Checked
+                        plot(app.UIAxes3, app.lib(j(i)).tspec(:,1), app.lib(j(i)).tspec(:,3), ...
+                            '--', "Color", app.lib(j(i)).tags);
+                        
+                    end
+                    % Absorption
+                    if app.AbsorptionMenu.Checked
+                        plot(app.UIAxes3, app.lib(j(i)).tspec(:,1), app.lib(j(i)).tspec(:,2), ...
+                            '-.', "Color", app.lib(j(i)).tags);
+                    end
+                    
+                end
+                
+                if app.MeasuredMenu.Checked && ~isempty(app.lib(j(i)).mspec)
+                    % Emission
+                    if app.EmissionMenu.Checked
+                        NormData = app.lib(j(i)).mspec(:,2)/max(app.lib(j(i)).mspec(:,2)).*100;
+                        plot(app.UIAxes3, app.lib(j(i)).mspec(:,1), NormData, ...
+                            '-', "Color", app.lib(j(i)).tags);
+                    end
+                    % Absorption - currently no measured absorption spectra
+                end
+            end
+            
+        end
+        
+        % Plot any basis spectra if loaded
+        if ~isempty(app.spec)
+            
+            linewidth = ones(app.cfg.num_spec, 1);
+            linewidth(app.state.spec) = 2;
+        
+            for i = 1:app.cfg.num_spec
+                plot(app.UIAxes3, app.spec(i).wl, app.spec(i).data * 100, ...
+                    "Color", rgb(app.spec(i).color), 'LineWidth', linewidth(i));
+            end
+            
+        end
+        
+        app.UIAxes3.XLimMode = 'auto';
+        app.UIAxes3.YLimMode = 'auto';
+        app.UIAxes3.XLabel.String = 'Wavelength (nm)';
+        app.UIAxes3.XLabel.String = 'Intensity (a.u.)';
+        
+        hold(app.UIAxes3, 'off');
+        %             app.PlotHandles = p;
+        
+    case '2' % Spectral Fit
+        
+        % Intialize data
+        savg = app.img(n).roiStats(end).savg;
+        sstd = app.img(n).roiStats(end).sstd;
+        xavg = app.img(n).roiStats(end).xavg;
+        xstd = app.img(n).roiStats(end).xstd;
+        
+        % Convert x to percentages
+        xavg_norm = 100 * xavg / sum(xavg);
+        xstd_norm = 100 * xstd;
+        
+        % Avg. Spectrum in ROI
+        if strcmp(app.ShowErrorBarsMenu.Checked, 'on')
+            % Plot error bars, but only if averaged spectra
+            % Point ROI's do not have error bars...
+            if isempty(sstd)
+                plot(app.UIAxes3, wl, savg, 'k');
+            else
+                errorbar(app.UIAxes3, wl, savg, sstd, 'k');
+            end
+        else
+            % Regular ol' plot
+            plot(app.UIAxes3, wl, savg, 'k');
+        end
+        legendNames{1} = 'ROI Avg. Spec.';
+        
+        % Fit A * x
+        plot(app.UIAxes3, wl, A*xavg, 'k--');
+        legendNames{2} = 'Fit A*x';
+        
+        % Linewidth of each spectrum (the selected spectra get bolded)
+        linewidth    = ones(app.cfg.num_spec, 1);
+        linewidth(m) = 2;
+        
+        % Made 2 plots already, count the rest
+        j = 3;
+        for i = 1:app.cfg.num_spec
+            if xavg(i) > 0 % Only plot if spectra is non-zero
+                
+                % Plot idv. spectra weight by unmixing coef.
+                plot(app.UIAxes3, wl, xavg(i)*A(:,i), 'Color', rgb(scolors{i}),...
+                    'LineWidth', linewidth(i));
+                
+                % Keep track of legend
+                if true % isempty(xstd_norm)
+                    legendNames{j} = sprintf('%s - %3.2f%%', ...
+                        slabels{i}, xavg_norm(i));
+                else
+                    legendNames{j} = sprintf('%s - %3.2f +/- %3.2f%%', ...
+                        slabels{i}, xavg_norm(i), xstd_norm(i));
+                end
+                j = j + 1;
+            end
+        end
+        
+        app.UIAxes3.Subtitle.String = ['ROI Composition \chi^2_{avg}', ...
+            sprintf('= %4.3e', app.img(n).roiStats(end).mchisq)];
+        app.UIAxes3.XLabel.String = 'Wavelength (nm)';
+        app.UIAxes3.YLabel.String = 'Intensity (a.u.)';
+        app.UIAxes3.XLim = [min(wl) max(wl)];
+        app.UIAxes3.YLim = [0 inf];
+        
+        if strcmp(app.ShowLegendMenu.Checked, 'on')
+            legend(app.UIAxes3, legendNames, 'Location', 'bestoutside');
+        else
+            legend(app.UIAxes3, 'off');
+        end
+        
+    case '3' % Histogram
+        
+        % In case multiple spectra are selected
+        roi = repmat(app.img(n).roi.mask, [1 1 length(m)]);
+        
+        % Mask data
+        data = app.img(n).x(:, :, m) .* roi;
+        
+        % Get rid of zeros
+        data( data == 0 ) = [];
+        
+        % Display
+        histogram(app.UIAxes3, data);
+        
+        % Threshold level
+        xline(app.UIAxes3, app.cfg.threshold(m(1)), 'Color', 'Red', 'LineWidth', 2);
+        
+        if numel(m) == 1
+            t = sprintf('Histogram of Basis Map - %s', slabels{m});
+        else
+            t = sprintf('Histogram of %d Basis Maps', numel(m));
+        end
+        app.UIAxes3.Subtitle.String = t;
+        app.UIAxes3.XLabel.String = 'Intensity - 10-bit scale';
+        app.UIAxes3.YLabel.String ='Counts';
+        app.UIAxes3.XLim = [0 1];
+        app.UIAxes3.YLim =[0 inf];
+        legend(app.UIAxes3, 'off');
+        
+    case {'4', '5'} % Phasor plots
+        
+        % Reshape image and mask into columns of pixels
+        pixels = permute(app.img(n).disp, [3 2 1]);
+        %         roi    = permute(roi, [3 2 1]);
+        pixels = pixels(:,:);
+        %         roi    = roi(:,:);
+        
+        % Mask 2D image
+        %         pixels = pixels(:, logical(roi));
+        
+        if app.ChooseAnalysisDropDown.Value == 3 % Fourier
+            
+            p     = app.cfg.phasor.f;
+            T     = fftCoefs(pixels, p:(p+1));
+            Tspec = fftCoefs(A,      p:(p+1));
+            
+            xlab = 'G'; ylab = 'S';
+            titlestr = sprintf('Fourier Phasor plot, n = %d', app.cfg.phasor.f);
+            
+        elseif app.ChooseAnalysisDropDown.Value == 4 % Chebyshev
+            
+            p     = app.cfg.phasor.c;
+            T     = fctCoefs(pixels, p:(p+1));
+            Tspec = fctCoefs(A,      p:(p+1));
+            
+            xlab = 'U_{n}'; ylab = 'U_{n+1}';
+            titlestr = sprintf('Chebyshev Phasor plot, n = %d', app.cfg.phasor.c);
+            
+        end
+        
+        % Calculate heatmap colorscheme for scatter plot
+        heatmap = heatscatter(T(1,:)', T(2,:)');
+        
+        % Scatter plot with heatmap
+        app.scat_pts = scatter(app.UIAxes3, T(1,:), T(2,:), 10, heatmap, '.');
+        hold(app.UIAxes3, 'on');
+        
+        % Plot pixels in roi
+        for a = 1:length(app.img(roiIdx).roi)
+            roi = app.img(roiIdx).roi(a).mask;
+            roi = permute(roi, [3 2 1]);
+            roi = roi(:,:);
+            
+            if sum(roi) < numel(roi)
+                app.scat_basis = scatter(app.UIAxes3, T(1, logical(roi)), T(2, logical(roi)), 10, app.cfg.roiColors{a}, '.');
+            end
+            
+        end
+        % Add basis spectra
+        app.scat_basis = scatter(app.UIAxes3, Tspec(1,:), Tspec(2,:), 100, rgb(scolors), 'filled');
+        app.UIAxes3.XLimMode = 'auto';
+        app.UIAxes3.YLimMode = 'auto';
+        app.UIAxes3.XLabel.String = xlab;
+        app.UIAxes3.YLabel.String = ylab;
+        app.UIAxes3.Subtitle.String = titlestr;
+        
+        if strcmp(app.ShowLegendMenu.Checked, 'on')
+            legend(app.UIAxes3, {'Phasor Points', 'Basis Spectra'}, 'Location', 'best');
+            colorbar(app.UIAxes3, 'on');
+        else
+            legend(app.UIAxes3, 'off');
+            colorbar(app.UIAxes3, 'off');
+        end
+end
+
+end
