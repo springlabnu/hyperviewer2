@@ -429,7 +429,7 @@ classdef hyperim
                     pwr = [];
                     obj.filt = true(size(wlvec));
                     
-                case 'slice' % Load Davis Lab data
+                case 'macrotome' % Load Davis Lab data
                     % path specifies full path to the .tif stack
                     
                     [filepath, obj.filename, ext] = fileparts(obj.path);
