@@ -501,10 +501,10 @@ classdef hyperim
                     
             end
             
-            % Initialize roi - default roi is entire image
-            % obj.roi = struct('mask',   ones(imx, imy), ... [dbl] binary mask, 1 inside the roi, 0 outside
-            %                 'pts',    [0 0; 0 imx; imy imx; imy 0; 0 0], ... [dbl] (x,y) coords that define the roi boundary
-            %                 'type',   'boundary');... [str] specify the type of roi {'boundary', 'point'}
+%             Initialize roi - default roi is entire image
+%             obj.roi = struct('mask',   ones(obj.imx, obj.imy), ... [dbl] binary mask, 1 inside the roi, 0 outside
+%                             'pts',    [0 0; 0 obj.imx; obj.imy obj.imx; obj.imy 0; 0 0], ... [dbl] (x,y) coords that define the roi boundary
+%                             'type',   'boundary');... [str] specify the type of roi {'boundary', 'point'}
             
             obj.roi = getRegion([obj.imx obj.imy], 'default');
             
