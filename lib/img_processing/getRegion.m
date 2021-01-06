@@ -23,6 +23,7 @@ switch opt
         % Get ROI
         % TODO: roipoly apparently doesn't work on UIAxes in AppDesigner,
         % update code. 
+        % Update to drawpolygon
         [roi.mask, x, y] = roipoly;
         roi.pts = [x  y];
         roi.type = 'boundary';

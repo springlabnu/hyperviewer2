@@ -126,6 +126,7 @@ switch type
         imy = varargin{1}(2);
         
         switch examp
+            % Change to load a default Polygon object
             case 'default'
                 out.mask = ones(imx, imy);
                 out.pts  = [0 0; 0 imx; imy imx; imy 0; 0 0];

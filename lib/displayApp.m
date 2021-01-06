@@ -477,7 +477,7 @@ switch opt
         % Mask 2D image
         %         pixels = pixels(:, logical(roi));
         
-        if app.ChooseAnalysisDropDown.Value == 3 % Fourier
+        if app.ChooseAnalysisDropDown.Value == '3' % Fourier
             
             p     = app.cfg.phasor.f;
             T     = fftCoefs(pixels, p:(p+1));
@@ -486,7 +486,7 @@ switch opt
             xlab = 'G'; ylab = 'S';
             titlestr = sprintf('Fourier Phasor plot, n = %d', app.cfg.phasor.f);
             
-        elseif app.ChooseAnalysisDropDown.Value == 4 % Chebyshev
+        elseif app.ChooseAnalysisDropDown.Value == '4' % Chebyshev
             
             p     = app.cfg.phasor.c;
             T     = fctCoefs(pixels, p:(p+1));
