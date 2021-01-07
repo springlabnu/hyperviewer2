@@ -13,10 +13,16 @@ switch opt
         
     case 'point'
         % Get point
-        [x, y] = ginput(1);
+        %[x, y] = ginput(1);
+        %roi.mask = zeros(imx, imy);
+        %roi.mask( round(y), round(x) ) = 1;
+        %roi.pts  = [round(x) round(y)];
+        axes = varargin{1}.UIAxes1;
+        %roi.axes = axes;
+        point = drawpoint(axes);
+        roi.pts = point.Position;
         roi.mask = zeros(imx, imy);
-        roi.mask( round(y), round(x) ) = 1;
-        roi.pts  = [round(x) round(y)];
+        roi.mask( round(roi.pts(1)), round(roi.pts(2))) = 1;
         roi.type = 'boundary';
         
     case 'roi'
@@ -29,9 +35,11 @@ switch opt
         %following hardcode of axis 1 needs to be changed at some point.
         %find a way to determine which image to put the ROI onto
         axes = varargin{1}.UIAxes1;
+        %roi.axes = axes;
         poly = drawpolygon(axes);
         roi.pts = poly.Position;
-        roi.mask = poly2mask(roi.pts(1),roi.pts(2),imx,imy);
+        roi.mask = double(poly2mask(roi.pts(:,1),roi.pts(:,2),imx,imy));
+        
         %Addition of initial point in order to have closed polygon plotted
         roi.pts(end+1,:) = roi.pts(1,:);
         roi.type = 'boundary';

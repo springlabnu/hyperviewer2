@@ -309,6 +309,13 @@ if opt ~= '1'
     
 end
 
+% Current ROI index
+if app.GlobalROIMenu.Checked
+    roiIdx = app.cfg.roiIdx;
+else
+    roiIdx = n;
+end
+
 switch opt
     
     case '1' % BSL
@@ -477,7 +484,7 @@ switch opt
         % Mask 2D image
         %         pixels = pixels(:, logical(roi));
         
-        if app.ChooseAnalysisDropDown.Value == '3' % Fourier
+        if app.ChooseAnalysisDropDown.Value == '4' % Fourier
             
             p     = app.cfg.phasor.f;
             T     = fftCoefs(pixels, p:(p+1));
@@ -486,7 +493,7 @@ switch opt
             xlab = 'G'; ylab = 'S';
             titlestr = sprintf('Fourier Phasor plot, n = %d', app.cfg.phasor.f);
             
-        elseif app.ChooseAnalysisDropDown.Value == '4' % Chebyshev
+        elseif app.ChooseAnalysisDropDown.Value == '5' % Chebyshev
             
             p     = app.cfg.phasor.c;
             T     = fctCoefs(pixels, p:(p+1));

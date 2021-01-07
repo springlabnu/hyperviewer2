@@ -131,6 +131,7 @@ switch type
                 out.mask = ones(imx, imy);
                 out.pts  = [0 0; 0 imx; imy imx; imy 0; 0 0];
                 out.type = 'boundary';
+                %out.axes = 'UICurrentAxes';
                 
             case 'empty'
                 out.mask = zeros(imx, imy);
