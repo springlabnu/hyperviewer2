@@ -24,8 +24,16 @@ switch opt
         % TODO: roipoly apparently doesn't work on UIAxes in AppDesigner,
         % update code. 
         % Update to drawpolygon
-        [roi.mask, x, y] = roipoly;
-        roi.pts = [x  y];
+        %[roi.mask, x, y] = roipoly;
+        
+        %following hardcode of axis 1 needs to be changed at some point.
+        %find a way to determine which image to put the ROI onto
+        axes = varargin{1}.UIAxes1;
+        poly = drawpolygon(axes);
+        roi.pts = poly.Position;
+        roi.mask = poly2mask(roi.pts(1),roi.pts(2),imx,imy);
+        %Addition of initial point in order to have closed polygon plotted
+        roi.pts(end+1,:) = roi.pts(1,:);
         roi.type = 'boundary';
         
     case 'scatter'
