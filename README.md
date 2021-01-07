@@ -15,7 +15,7 @@ Visualization and analysis tool for hyperspectral images and videos as described
 
 HyperViewer is a tool for visualization, analysis, and batch processing of hyperspectral images and videos. HyperViewer integrates intuitive visualization of hyperspectral images with quantitative unmixing via non-negative least squares fitting routine using a predefined basis spectra library. A number of NNLS configurations are employed for comparison including the seminal active-set method ([*lsqnonneg*](https://www.mathworks.com/help/matlab/ref/lsqnonneg.html) in MATLAB), the improved [fast-NNLS method](https://doi.org/10.1002/(SICI)1099-128X(199709/10)11:5%3C393::AID-CEM483%3E3.0.CO;2-L), and the GPU-FNNLS method developed by the authors. To use GPU-FNNLS, you must have a CUDA-enabled NVIDIA GPU in a supported environment. If a compatible GPU is not available, CPU based unmixing is automatically implemented but will be quite slow. GPU-acceleration is highly recommended for large data sets.
 
-While a number of basic GUI features have been added (and more are in development), it is by no means complete. HyperViewer is best used within the MATLAB programming environment such that custom processing routines and support for more filetypes may be added at the users discretion. Therefore, we recommend users have a basic working knowledge of MATLAB. We encourage users to submit bug reports or feature requests for continued development of a more general hyperspectral GUI.
+While a number of basic App Designer features have been added (and more are in development), it is by no means complete. HyperViewer is best used within the MATLAB programming environment such that custom processing routines and support for more filetypes may be added at the users discretion. Therefore, we recommend users have a basic working knowledge of MATLAB. We encourage users to submit bug reports or feature requests for continued development of a more general hyperspectral app.
 
 ## System Requirements
 
@@ -27,19 +27,19 @@ This code requires MATLAB. Therefore, we recommend using systems that meet MATLA
 * 4-6 GB Hard drive space (for new MATLAB installs)
 * ≥4 GB RAM
 
-This software was developed and tested using MATLAB 2018b (ver 9.5). The following MATLAB Toolboxes are required. Version numbers indicate releases under which this code was developed and tested.
+This software was developed and tested using MATLAB 2020b (ver 9.9). The following MATLAB Toolboxes are required. Version numbers indicate releases under which this code was developed and tested.
 
-* Image Processing Toolbox (ver 10.3)
-* Statistics and Machine Learning Toolbox (ver 11.4)
+* Image Processing Toolbox (ver 11.2)
+* Statistics and Machine Learning Toolbox (ver 12.0)
 
-The following toolboxes are recommended, but not required, for standard GUI operation:
+The following toolboxes are recommended, but not required, for standard app operation:
 
-* [MATLAB Parallel Computing Toolbox](https://www.mathworks.com/support/requirements/parallel-computing-toolbox.html) (ver 6.13)
+* [MATLAB Parallel Computing Toolbox](https://www.mathworks.com/support/requirements/parallel-computing-toolbox.html) (ver 7.3)
 
 ### GPU-accelerated NNLS:
 The following is required to run GPU-FNNLS using MATLAB:
 
-* [MATLAB Parallel Computing Toolbox](https://www.mathworks.com/support/requirements/parallel-computing-toolbox.html) (ver 6.13)
+* [MATLAB Parallel Computing Toolbox](https://www.mathworks.com/support/requirements/parallel-computing-toolbox.html) (ver 7.3)
 * CUDA-enabled NVIDIA GPU with compute capability 3.0 or higher.
 * Download the latest NVIDIA [graphics driver](https://www.nvidia.com/Download/index.aspx)
 
@@ -72,16 +72,16 @@ To start HyperViewer, run
 ```
 >> unmixUI
 ```
-in the command window, or open ```unmixUI.m``` in the editor and click "Run" in the menu bar. To view or edit the GUI layout in GUIDE, run
+in the command window, or open ```unmixUI.m``` in the editor and click "Run" in the menu bar. To view or edit the layout in GUIDE, run
 ```
 >> guide unmixUI
 ```
 
-A detailed walkthrough of GUI functions can be found in the [User Guide](www.github.com/hyperviewer_release/USERGUIDE.md).
+A detailed walkthrough of the HyperViewer App functions can be found in the [User Guide](www.github.com/hyperviewer_release/USERGUIDE.md).
 
 ## Demo
 
-To see a few examples of hyperspectral unmixing, download the demo package (1.4 GB) from the [Spring Lab website](www.springlabnu.com/software). Unzip the file and move into the main HyperViewer working directory. Run the GUI, then click 'Demo' in the menu bar and select one of the demos.
+To see a few examples of hyperspectral unmixing, download the demo package (1.4 GB) from the [Spring Lab website](www.springlabnu.com/software). Unzip the file and move into the main HyperViewer working directory. Run the app, then click 'Demo' in the menu bar and select one of the demos.
 
 #### Apples
 
@@ -111,6 +111,12 @@ The following hyperspectral image filetypes are supported
 
 ## Authors
 * **Eric Kercher** - Primary author
+* **Becca Harman** - Secondary author
+* **Ryan Lang** - Secondary author
+* **Paige Leven** - Secondary author
+* **Ji Tae Park** - Secondary author
+* **Liam Price** - Secondary author
+* **Kai Zhang** - Secondary author
 
 ## License
 
