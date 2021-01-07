@@ -31,8 +31,9 @@ switch opt
         axes = varargin{1}.UIAxes1;
         poly = drawpolygon(axes);
         roi.pts = poly.Position;
-        roi.pts(end+1,:) = roi.pts(1,:);
         roi.mask = poly2mask(roi.pts(1),roi.pts(2),imx,imy);
+        %Addition of initial point in order to have closed polygon plotted
+        roi.pts(end+1,:) = roi.pts(1,:);
         roi.type = 'boundary';
         
     case 'scatter'
