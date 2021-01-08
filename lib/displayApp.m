@@ -192,6 +192,8 @@ end
 
 % Give the image context menu properties
 app.UIAxes1.Children(end, 1).ContextMenu = app.ROIContextMenu;
+% Makes children of UIAxes1 Transparent to mouseclicks FIX THIS LATER
+app.UIAxes1.Children(end, 1).PickableParts = 'none';
 
 %%  Display UIAxes2
 
@@ -207,6 +209,8 @@ end
 
 % Give the image context menu properties
 app.UIAxes2.Children(end, 1).ContextMenu = app.ROIContextMenu;
+% Makes children of UIAxes2 Transparent to mouseclicks 
+app.UIAxes2.Children(end, 1).PickableParts = 'none';
 
 %%  Display UIAxes3
 

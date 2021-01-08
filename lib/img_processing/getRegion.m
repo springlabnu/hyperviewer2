@@ -17,8 +17,7 @@ switch opt
         %roi.mask = zeros(imx, imy);
         %roi.mask( round(y), round(x) ) = 1;
         %roi.pts  = [round(x) round(y)];
-        axes = varargin{1}.UIAxes1;
-        %roi.axes = axes;
+        axes = varargin{1};
         point = drawpoint(axes);
         roi.pts = point.Position;
         roi.mask = zeros(imx, imy);
@@ -34,8 +33,7 @@ switch opt
         
         %following hardcode of axis 1 needs to be changed at some point.
         %find a way to determine which image to put the ROI onto
-        axes = varargin{1}.UIAxes1;
-        %roi.axes = axes;
+        axes = varargin{1};
         poly = drawpolygon(axes);
         roi.pts = poly.Position;
         roi.mask = double(poly2mask(roi.pts(:,1),roi.pts(:,2),imx,imy));
