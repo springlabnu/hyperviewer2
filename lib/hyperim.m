@@ -570,32 +570,32 @@ classdef hyperim
         end
         
         function obj = preProcessImage(obj, app)
-            
-            %%%%% Pre analysis
+            %% Pre analysis
             % Do these things to the image *before* unmixing
             
+            obj.disp = obj.cube;
             % Over-sampling correction
             if app.SamplingCorrectionMenu.Checked
-                obj.cube   = sampling_correction(obj.cube,   app.cfg.compress);
+                obj.disp   = sampling_correction(obj.disp,   app.cfg.compress);
                 obj.satpix = sampling_correction(obj.satpix, app.cfg.compress);
                 
                 % Update image size
-                [obj.imx, obj.imy, ~] = size(obj.cube);
+                [obj.imx, obj.imy, ~] = size(obj.disp);
                 
                 % This changes the image size so reset the roi
-                obj.roi = getRegion(size(obj.cube), 'fibercore');
+                obj.roi = getRegion(size(obj.disp), 'fibercore');
             end
             
             % Blur
             if app.GaussianBlurMenu.Checked
                 for i = 1:length(obj.wl)
-                    obj.cube(:, :, i) = imfilter(obj.cube(:, :, i), app.cfg.gaussfilt, 'replicate');
+                    obj.disp(:, :, i) = imfilter(obj.disp(:, :, i), app.cfg.gaussfilt, 'replicate');
                 end
             end
             
             % Fiber filter
             if app.ApplyFiberImageFilterMenu.Checked
-                obj.cube = obj.cube .* repmat(app.cfg.fiber_mask, [1 1 length(obj.wl)]);
+                obj.disp = obj.disp .* repmat(app.cfg.fiber_mask, [1 1 length(obj.wl)]);
             end
             
             % Flatfield correction
@@ -603,7 +603,7 @@ classdef hyperim
                 if isempty(app.cfg.ff_correction)
                     cfg.ff_correction = ffcorrect(obj, app.cfg);
                 end
-                obj.cube = obj.cube .* cfg.ffcorrection;
+                obj.disp = obj.disp .* cfg.ffcorrection;
             end
             
             % Smoothing
@@ -611,16 +611,16 @@ classdef hyperim
                 % Specify range of spectra to fit
                 % TODO: move 'specrange' to default setting
                 specrange = 1:length(obj.wl);
-                obj.cube = smoothSpectra(obj.wl, obj.cube, specrange);
+                obj.disp = smoothSpectra(obj.wl, obj.disp, specrange);
             end
             
             % Saturated pixels
             if app.IncludeSaturatedPixelsMenu.Checked
-                obj.cube = obj.cube .* repmat(obj.satpix, [1 1 length(obj.wl)]);
+                obj.disp = obj.disp .* repmat(obj.satpix, [1 1 length(obj.wl)]);
             end
             
             % Normalize Cube
-            obj.cube = mat2gray(obj.cube);
+            obj.disp = mat2gray(obj.disp);
             
             % Pseudocolor the spectral image (normalize)
             % colors = squeeze(spectrumRGB(im.wl));
@@ -629,17 +629,16 @@ classdef hyperim
 %             colors = jet(length(obj.wl));
 %             obj.colorims.cube = colorImage(obj.cube, colors, true);
             
-            obj.disp = obj.cube; 
             
         end
         
         function [obj, flag] = unmixImage(obj, cfg)
-            % Compute A matrix
+            %% Compute A matrix
             % im.A = getAmatrix(spec, im.wl, filetype);
             
             flag = [];
             try
-                [obj.x, obj.r, obj.evalTime] = parspecdecomp(obj.A, obj.cube, cfg.algorithm, cfg.gpuIdx);
+                [obj.x, obj.r, obj.evalTime] = parspecdecomp(obj.A, obj.disp, cfg.algorithm, cfg.gpuIdx);
             catch flag
                 return;
             end
@@ -650,8 +649,7 @@ classdef hyperim
         end
         
         function obj = postProcessImage(obj, app)
-            
-            %%%%% Post analsys
+            %% Post analsys
             % Do these things *after* unmixing
             
             % Calculate Reduced Chi-Squared
@@ -666,7 +664,7 @@ classdef hyperim
                     
                     % Sigma is the uncertainty of the measurement and dof is the number of
                     % degrees of freedom of system
-                    sigma = sqrt(pfactor * obj.cube);
+                    sigma = sqrt(pfactor * obj.disp);
                     
                     % Reduced Chi-Squared. Defined as the sum of the residual squared
                     % divided by the varience (uncertainty squared), all over the dof of
