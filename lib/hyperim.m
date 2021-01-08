@@ -544,7 +544,7 @@ classdef hyperim
                     % Basis spectra already at correct resolution
                     obj.A = [app.spec.data];
 
-                case {'envi', 'oir', 'oir-tiff', 'czi', 'slice'}
+                case {'envi', 'oir', 'oir-tiff', 'czi', 'macrotome'}
 
                     % Interpolate basis spec data to match image wl res
                     obj.A = zeros(num_wl, num_spec);
