@@ -313,12 +313,12 @@ if opt ~= '1'
     
 end
 
-% Current ROI index
-if app.GlobalROIMenu.Checked
-    roiIdx = app.cfg.roiIdx;
-else
-    roiIdx = n;
-end
+% Current ROI index ----- moved below to avoid bugs
+% if app.GlobalROIMenu.Checked
+%     roiIdx = app.cfg.roiIdx;
+% else
+%     roiIdx = n;
+% end
 
 switch opt
     
@@ -515,6 +515,13 @@ switch opt
         app.scat_pts = scatter(app.UIAxes3, T(1,:), T(2,:), 10, heatmap, '.');
         hold(app.UIAxes3, 'on');
         
+        % Current ROI index (of image)
+        if app.GlobalROIMenu.Checked
+            roiIdx = app.cfg.roiIdx;
+        else
+            roiIdx = n;
+        end
+
         % Plot pixels in roi
         for a = 1:length(app.img(roiIdx).roi)
             roi = app.img(roiIdx).roi(a).mask;

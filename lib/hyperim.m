@@ -622,12 +622,21 @@ classdef hyperim
             % Normalize Cube
             obj.disp = mat2gray(obj.disp);
             
+            % n-D phasor denoising
+            if app.nDPhasorDenoisingMenu.Checked
+                type = app.ChoosePhasorTypeDropDown.Value;
+                n = str2double(app.ChooseNValueDropDown.Value);
+                sigma = str2double(app.ChooseSigmaValueDropDown.Value);
+                obj.disp = phasorDenoiseNd(obj.disp, type, n, sigma);
+            end
+            
             % Pseudocolor the spectral image (normalize)
             % colors = squeeze(spectrumRGB(im.wl));
             
             % Pseudocolor by custom color map
 %             colors = jet(length(obj.wl));
 %             obj.colorims.cube = colorImage(obj.cube, colors, true);
+
             
             
         end
