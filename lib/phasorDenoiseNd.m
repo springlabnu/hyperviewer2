@@ -1,13 +1,35 @@
 function denoised_cube = phasorDenoiseNd(cube, type, n, sigma)
 tic 
 
-%cutoff for mdck
+%mdck
 %cutoff = 20;
 
-%cutoff for dyes in soln
-cutoff = 0.1;
-cube2 = cube.*(max(cube,[],3)>cutoff);
-cube2 = cube2.*(max(cube,[],3) ~= 1);
+%dyes in soln
+%cutoff = 0.1;
+%pixmax = 1;
+
+%phantom images
+%convert uint16 to double
+cube = double(cube)/65535;
+cutoff = 0.013;
+%cutoff = 800;
+pixmax = 1; %uint16
+
+%cutoff low intensity pixels (noise, no signal)
+mask = (max(cube,[],3)>cutoff);
+%mask = uint16(mask); %for uint16 cubes only
+cube2 = cube.*mask;
+
+%don't use saturated pixels
+mask2 = (max(cube,[],3) ~= pixmax);
+%mask2 = uint16(mask2); %for uint16 cubes only
+cube2 = cube2.*mask2;
+
+% if no signal, don't denoise
+if max(max(max(cube2)))==0
+    denoised_cube = cube;
+    return
+end
 
 % get phasor coordinates
 % Reshape image and mask into columns of pixels
@@ -18,7 +40,7 @@ if strcmp(type,'Fourier')
     T = fftCoefs(pixels, 1:n);
     %T = fftCoefs(pixels, 2:(n+1));
     
-elseif strcmp(value,'Chebyshev')
+elseif strcmp(type,'Chebyshev')
     T = fctCoefs(pixels, 2:(n+1));
 end
 
