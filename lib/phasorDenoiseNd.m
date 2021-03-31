@@ -47,9 +47,64 @@ end
 X = T(1,:);
 Y = T(2,:);
 
+if max(X) == min(X) && max(Y) == min(Y)
+    denoised_cube = cube;
+    return
+end
+
 
 numbins_x = floor((max(X)-min(X))/(sigma));
 numbins_y = floor((max(Y)-min(Y))/(sigma));
+
+% second dimension of input cube to be used to calculate pixel location
+dim2 = size(cube,2);
+
+% if numbins_x or numbins_y is 0 or 1, just apply filter to all points
+% without binning and return
+if numbins_x == 0 || numbins_x == 1 || numbins_y == 0 || numbins_y ==1
+    denoised_cube = cube;
+    for i = 1:size(X,2)
+        x = X(i);
+        y = Y(i);
+
+        if isfinite(x)
+
+            px_x = idivide(i, int16(dim2)) + 1;
+            px_y = mod(i,dim2);
+            if mod(i,dim2) == 0
+                px_y = dim2;
+            end
+
+            px = cube(px_x,px_y,:);
+            norm_og = max(px);
+            weight = 1;
+            denoised_px = px*weight/norm_og;
+
+            for j = 1:size(X,2)
+                n_x = X(j);
+                n_y = Y(j);
+
+                % distance from current pixel
+                d = ((x-n_x)^2+(y-n_y)^2)^(0.5);
+
+                if d < 3*sigma
+                    n_px_x = idivide(j, int16(dim2)) + 1;
+                    n_px_y = mod(j,dim2);
+                    if mod(j,dim2) == 0
+                        n_px_y = dim2;
+                    end
+
+                    n_px = cube(n_px_x,n_px_y,:);
+                    norm = max(n_px);
+                    weight = exp(-(d^2)/(2*(sigma^2)));
+                    denoised_px = denoised_px + n_px*weight/norm;
+                end
+            end
+            denoised_cube(px_x,px_y,:) = denoised_px;
+        end
+    end
+    return
+end
 
 % histogram phasor X,Y data
 % values: array of bins, values of # of points that fall in that bin
@@ -59,6 +114,7 @@ numbins_y = floor((max(Y)-min(Y))/(sigma));
 % create arrays of x positions, y positions
 centers_X = centers{1,1};
 centers_Y = centers{1,2};
+
 % determine half the size of the bins
 binsize_X = abs(centers_X(2) - centers_X(1)) / 2;
 binsize_Y = abs(centers_Y(2) - centers_Y(1)) / 2;
@@ -78,8 +134,6 @@ num_phasors = zeros(m,m2);
 
 % number of channels
 chan = size(cube,3);
-% second dimension of input cube to be used to calculate pixel location
-dim2 = size(cube,2);
 
 
 for i = 1:size(X,2)
