@@ -1,5 +1,13 @@
 function writeImages(im, save_dir, app)
-%% Saves im (hyperim class) in directory dir, needs app object from Hyperviewer2
+% WRITEIMAGES   Save function for HyperViewer2
+%   writeImages(im, save_dir, app) Saves unmixed image data to a directory for HyperViewer2
+%       im              hyperim class object, unmixed by HyperViewer2
+%       save_dir        directory to save image files
+%       app             HyperViewer2 app instance
+
+% Clear any files already in save_dir
+delete([save_dir '*']);
+
 % Write colored composite raw-image
 wlfilt = [im.filt];
 rawcomp = im.colorImage(app, wlfilt, 'cube');
@@ -14,12 +22,11 @@ imwrite(colorcomp, [save_dir 'basis_composite_image.tif']);
 % Single channel images
 for i = 1:app.cfg.num_spec
     % Save Color Images
-    colorbasis = im.colorImage(app, i, 'x');
-    imwrite(colorbasis, [save_dir 'basis_image_' ...
+    imwrite(im.colorImage(app, i, 'x'), [save_dir 'basis_image_' ...
         app.spec(i).label '.tif'] );
     
     % Save Raw basis maps as 16-bit tiffs
-    imwrite( uint16(im.x(:,:,i) * 2^16), [save_dir 'basis_image_intensity_map_' ...
+    imwrite(uint16(im.x(:,:,i) * (2^16-1)), [save_dir 'basis_image_intensity_map_' ...
         app.spec(i).name '.tif'] );
 end
 
