@@ -628,7 +628,12 @@ classdef hyperim
             end
             
             % Normalize Cube
-            obj.disp = mat2gray(obj.disp);
+            if app.NormalizeRawImageMenu.Checked
+                obj.disp = mat2gray(obj.disp);
+            else
+                % Still map from 0 to 1 but use min and max of image size
+                obj.disp = im2double(obj.disp);
+            end
             
             
             % Pseudocolor the spectral image (normalize)
