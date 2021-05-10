@@ -1,40 +1,60 @@
-function denoised_cube = phasorDenoiseNd(cube, type, n, sigma)
+function phasorDenoiseAllNd(app, type, n, sigma)
 tic 
 
-%mdck
-%cutoff = 20;
+n_im = app.cfg.num_imgs;
 
-%dyes in soln
-%cutoff = 0.1;
-%pixmax = 1;
+[xdim,ydim,chan] = size(app.img(1).cube);
+pixels = zeros(chan,xdim*ydim*n_im);
+n_pix = xdim*ydim;
 
-%phantom images
-%convert uint16 to double
-cube = double(cube)/(2^16-1);
-cutoff = 0.013;
-%cutoff = 800;
-pixmax = 1; %uint16
+for i = 1:n_im
+    if ~app.img(i).isLoaded
+        [app.img(i), ME] = getImageCube(app.img(i), app.expt.filetype);
+        
+        % Update filename before checking the error
+        app.DirectoryListBox.Items = {app.img.filename};
+        app.DirectoryListBox.ItemsData = 1:length({app.img.filename});
 
-%cutoff low intensity pixels (noise, no signal)
-mask = (max(cube,[],3)>cutoff);
-%mask = uint16(mask); %for uint16 cubes only
-cube2 = cube.*mask;
+        if ~isempty(ME)
+            app.msgbox.Text = ME;
+            warning(ME);
+        end
+    end
+    
+    cube = app.img(i).cube;
+    
+    %going to put denoised cubes into app.img.disp
+    app.img(i).disp = cube;
+    
+    %phantom images
+    %convert uint16 to double
+    cube = double(cube)/(2^16-1);
+    cutoff = 0.013;
+    pixmax = 1; %uint16
+    
+    %cutoff low intensity pixels (noise, no signal)
+    mask = (max(cube,[],3)>cutoff);
+    %mask = uint16(mask); %for uint16 cubes only
+    cube2 = cube.*mask;
 
-%don't use saturated pixels
-mask2 = (max(cube,[],3) ~= pixmax);
-%mask2 = uint16(mask2); %for uint16 cubes only
-cube2 = cube2.*mask2;
-
-% if no signal, don't denoise
-if max(max(max(cube2)))==0
-    denoised_cube = cube;
-    return
+    %don't use saturated pixels
+    mask2 = (max(cube,[],3) ~= pixmax);
+    %mask2 = uint16(mask2); %for uint16 cubes only
+    cube2 = cube2.*mask2;
+    
+    % get phasor coordinates
+    % Reshape image and mask into columns of pixels
+    im_pixels = permute(cube2, [3 2 1]);
+    im_pixels = im_pixels(:,:);
+    pixels(:,(i-1)*n_pix+1:i*n_pix) = im_pixels;
+    
 end
 
-% get phasor coordinates
-% Reshape image and mask into columns of pixels
-pixels = permute(cube2, [3 2 1]);
-pixels = pixels(:,:);
+
+% if no signal, don't denoise
+if max(max(pixels))==0
+    return
+end
 
 if strcmp(type,'Fourier')
     T = fftCoefs(pixels, 1:n);
@@ -47,8 +67,8 @@ end
 X = T(1,:);
 Y = T(2,:);
 
+% if there's only one data point to denoise, do nothing
 if max(X) == min(X) && max(Y) == min(Y)
-    denoised_cube = cube;
     return
 end
 
@@ -56,20 +76,20 @@ end
 numbins_x = floor((max(X)-min(X))/(sigma));
 numbins_y = floor((max(Y)-min(Y))/(sigma));
 
-% second dimension of input cube to be used to calculate pixel location
-dim2 = size(cube,2);
+% second (y) dimension of input cube to be used to calculate pixel location
+dim2 = ydim;
 
 % if numbins_x or numbins_y is 0 or 1, just apply filter to all points
 % without binning and return
 if numbins_x == 0 || numbins_x == 1 || numbins_y == 0 || numbins_y ==1
-    denoised_cube = cube;
     for i = 1:size(X,2)
         x = X(i);
         y = Y(i);
 
         if isfinite(x)
-
-            px_x = ceil(i/dim2);
+            
+            im_n = ceil(i/n_pix);
+            px_x = ceil((i-(im_n-1)*n_pix)/dim2);
             px_y = mod(i,dim2);
             if mod(i,dim2) == 0
                 px_y = dim2;
@@ -88,19 +108,20 @@ if numbins_x == 0 || numbins_x == 1 || numbins_y == 0 || numbins_y ==1
                 d = ((x-n_x)^2+(y-n_y)^2)^(0.5);
 
                 if d < 3*sigma
-                    n_px_x = ceil(j/dim2);
+                    n_im_n = ceil(j/n_pix);
+                    n_px_x = ceil((j-(im_n-1)*n_pix)/dim2);
                     n_px_y = mod(j,dim2);
                     if mod(j,dim2) == 0
                         n_px_y = dim2;
                     end
 
-                    n_px = cube(n_px_x,n_px_y,:);
+                    n_px = app.img(n_im_n).cube(n_px_x,n_px_y,:);
                     norm = max(n_px);
                     weight = exp(-(d^2)/(2*(sigma^2)));
                     denoised_px = denoised_px + n_px*weight/norm;
                 end
             end
-            denoised_cube(px_x,px_y,:) = denoised_px;
+            app.img(im_n).disp(px_x,px_y,:) = denoised_px;
         end
     end
     return
@@ -132,9 +153,6 @@ grouped_phasors = zeros(m,m2,n_peakbin,n+1);
 num_phasors = zeros(m,m2);
 
 
-% number of channels
-chan = size(cube,3);
-
 
 for i = 1:size(X,2)
     % phasor coords ph_x and ph_y
@@ -142,7 +160,7 @@ for i = 1:size(X,2)
     ph_x = X(i);
     ph_y = Y(i);
     
-    if isfinite(ph_x)==1
+    if isfinite(ph_x)
         % caclulate which bin the point is in
       
         bin_x = ceil((ph_x-centers_X(1)+binsize_X)/(2*binsize_X));
@@ -174,9 +192,6 @@ end
 % APPLY GAUSSIAN CONVOLUTION FILTER
 % weights based on distance between pixels in phasor space
 % sigma defines gaussian filter weights
-
-% new denoised cube
-denoised_cube = cube;
 
 
 for bin_x = 1:numbins_x
@@ -226,13 +241,14 @@ for bin_x = 1:numbins_x
                     % index of phasor pt_i
                     pt_i = bins2search(search_x,search_y,j,n+1);
                     % pixel coords of pt
-                    px_x = ceil(pt_i/n_pix);
+                    im_n = ceil(pt_i/n_pix);
+                    px_x = ceil((pt_i-(im_n-1)*n_pix)/dim2);
                     px_y = mod(pt_i,dim2);
                     if mod(pt_i,dim2) == 0
                         px_y = dim2;
                     end
 
-                    px2search(search_x,search_y,j,:) = cube(px_x,px_y,:);
+                    px2search(search_x,search_y,j,:) = app.img(im_n).disp(px_x,px_y,:);
                     
                 end
             end
@@ -282,14 +298,59 @@ for bin_x = 1:numbins_x
             pt_i = grouped_phasors(bin_x,bin_y,pt,n+1);
 
             % pixel coords of pt
-            px_x = ceil(pt_i/n_pix);
+            im_n = ceil(pt_i/n_pix);
+            px_x = ceil((pt_i-(im_n-1)*n_pix)/dim2);
             px_y = mod(pt_i,dim2);
             if mod(pt_i,dim2) == 0
                 px_y = dim2;
             end
 
-            denoised_cube(px_x,px_y,:) = new_pixels(pt,:);
+            app.img(im_n).disp(px_x,px_y,:) = new_pixels(pt,:);
         end
     end
 end 
+
+
+%now unmix all images, skip pre-processing
+for i = 1:n_im
+    
+     app.msgbox.Text = 'Unmixing all images...  0%';
+            
+    % Switch to axes3 to display unmixing stats
+    hold(app.UIAxes3, "on");
+    title(app.UIAxes3, 'Unmixing Speed');
+    xlabel(app.UIAxes3, 'Image #');
+    ylabel(app.UIAxes3, 'Time (s)');
+    xlim(app.UIAxes3, [0 app.cfg.num_imgs]);
+    legend(app.UIAxes3, 'off');
+    set(app.UIAxes3, 'YScale', 'log');
+
+
+    t_load = zeros(1, app.cfg.num_imgs);
+    lag    = zeros(1, app.cfg.num_imgs);
+    
+    app.img(i).disp = mat2gray(app.img(i).disp);
+    app.img(i) = app.img(i).getAmatrix(app);
+    [app.img(i), ME] = unmixImage(app.img(i), app.cfg);
+    if ~isempty(ME)
+        app.msgbox.Text = app.msg.nogpu;
+    end
+    app.img(i) = app.img(i).postProcessImage(app);
+    app.img(i).tmask = true(size(app.img(i).x));
+    
+    % Get region stats
+    app.img(i).roiStats = getRegionStats(app.img(i), app.img(app.cfg.roiIdx).roi.mask);
+
+    lag(i) = t_load(i) - app.img(i).evalTime;
+    plot(app.UIAxes3, i, t_load(i), 'b*', i, lag(i), 'ro');
+    ylim(app.UIAxes3, [-inf inf]);
+
+    app.msgbox.Text = sprintf('Unmixing all images... %1.0f %%', ...
+        app.expt.loadvec(i));
+    drawnow;
+end
+
+hold(app.UIAxes3, "off");
+app.msgbox.Text = 'Ready.';
+
 toc
