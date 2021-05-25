@@ -5,6 +5,7 @@ n_im = app.cfg.num_imgs;
 
 [xdim,ydim,chan] = size(app.img(1).cube);
 pixels = zeros(chan,xdim*ydim*n_im);
+% number of pixels per image
 n_pix = xdim*ydim;
 
 for i = 1:n_im
@@ -329,7 +330,7 @@ for i = 1:n_im
     t_load = zeros(1, app.cfg.num_imgs);
     lag    = zeros(1, app.cfg.num_imgs);
     
-    app.img(i).disp = mat2gray(app.img(i).disp);
+    app.img(i).disp = im2double(app.img(i).disp);
     app.img(i) = app.img(i).getAmatrix(app);
     [app.img(i), ME] = unmixImage(app.img(i), app.cfg);
     if ~isempty(ME)
