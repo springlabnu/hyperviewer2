@@ -63,25 +63,22 @@ elseif strcmp(type,'Chebyshev')
     T = fctCoefs(pixels, 2:(n+1));
 end
 
-X = T(1,:);
-Y = T(2,:);
+X = gpuArray(T(1,:));
+Y = gpuArray(T(2,:));
 
 % if there's only one data point to denoise, do nothing
 if max(X) == min(X) && max(Y) == min(Y)
     return
 end
 
-
-numbins_x = floor((max(X)-min(X))/(sigma));
-numbins_y = floor((max(Y)-min(Y))/(sigma));
-
 % second (y) dimension of input cube to be used to calculate pixel location
 dim2 = ydim;
 
 % new array of denoised pixels
 dn_pixels = pixels;
-% array J of index of phasor pt in X,Y arrays (make GPU array?)
-J = (1:size(X,2));
+
+%make pixels a gpuArray
+pixels = gpuArray(pixels);
 
 for i = 1:size(X,2)
     x = X(i);
@@ -89,70 +86,79 @@ for i = 1:size(X,2)
 
     if isfinite(x)
 
-        im_n = ceil(i/n_pix);
-        px_x = ceil((i-(im_n-1)*n_pix)/dim2);
-        px_y = mod(i,dim2);
-        if mod(i,dim2) == 0
-            px_y = dim2;
-        end
+        %get image numner and pixel coords corresponding to pixel i in
+        %phasor list
 
-        px = cube(px_x,px_y,:);
+        px = pixels(:,i);
         norm_og = max(px);
-        weight = 1;
-        denoised_px = px*weight/norm_og;
         
         % array D of distances from current pixel's phasor pt
         D = ((X-x).^2 + (Y-y).^2).^(0.5);
-        
-        
-
-
-
-
-% if numbins_x or numbins_y is 0 or 1, just apply filter to all points
-% without binning and return
-if numbins_x == 0 || numbins_x == 1 || numbins_y == 0 || numbins_y ==1
-    for i = 1:size(X,2)
-        x = X(i);
-        y = Y(i);
-
-        if isfinite(x)
-            
-            im_n = ceil(i/n_pix);
-            px_x = ceil((i-(im_n-1)*n_pix)/dim2);
-            px_y = mod(i,dim2);
-            if mod(i,dim2) == 0
-                px_y = dim2;
-            end
-
-            px = cube(px_x,px_y,:);
-            norm_og = max(px);
-            weight = 1;
-            denoised_px = px*weight/norm_og;
-
-            for j = 1:size(X,2)
-                n_x = X(j);
-                n_y = Y(j);
-
-                % distance from current pixel
-                d = ((x-n_x)^2+(y-n_y)^2)^(0.5);
-
-                if d < 3*sigma
-                    n_im_n = ceil(j/n_pix);
-                    n_px_x = ceil((j-(im_n-1)*n_pix)/dim2);
-                    n_px_y = mod(j,dim2);
-                    if mod(j,dim2) == 0
-                        n_px_y = dim2;
-                    end
-
-                    n_px = app.img(n_im_n).cube(n_px_x,n_px_y,:);
-                    norm = max(n_px);
-                    weight = exp(-(d^2)/(2*(sigma^2)));
-                    denoised_px = denoised_px + n_px*weight/norm;
-                end
-            end
-            app.img(im_n).disp(px_x,px_y,:) = denoised_px;
-        end
+        % array of normalization factors
+        N = sum(pixels,1);
+        % array of weights for each pixel
+        W = exp(-D/(2*sigma^2));
+        W(isnan(W)) = 0;
+        % array of normalized pixels
+        norm_pixels = pixels ./ N;
+        % recalculate pixel i's value by weighting normalized pixels
+        denoised_px = sum(norm_pixels.*W,2);
+        % reassign into dn_pixels array and renormalize
+        dn_pixels(:,i) = denoised_px*norm_og/sum(denoised_px);
     end
-    return
 end
+
+% assign all dn_pixels into disp cube of associated image
+for i = 1:size(X,2)
+    im_n = ceil(i/n_pix);
+    px_x = ceil((i-(im_n-1)*n_pix)/dim2);
+    px_y = mod(i,dim2);
+    if mod(i,dim2) == 0
+        px_y = dim2;
+    end
+    app.img(im_n).disp(px_x,px_y,:) = dn_pixels(:,i);
+end
+
+%now unmix all images, skip pre-processing
+for i = 1:n_im
+    
+     app.msgbox.Text = 'Unmixing all images...  0%';
+            
+    % Switch to axes3 to display unmixing stats
+    hold(app.UIAxes3, "on");
+    title(app.UIAxes3, 'Unmixing Speed');
+    xlabel(app.UIAxes3, 'Image #');
+    ylabel(app.UIAxes3, 'Time (s)');
+    xlim(app.UIAxes3, [0 app.cfg.num_imgs]);
+    legend(app.UIAxes3, 'off');
+    set(app.UIAxes3, 'YScale', 'log');
+
+
+    t_load = zeros(1, app.cfg.num_imgs);
+    lag    = zeros(1, app.cfg.num_imgs);
+    
+    app.img(i).disp = im2double(app.img(i).disp);
+    app.img(i) = app.img(i).getAmatrix(app);
+    [app.img(i), ME] = unmixImage(app.img(i), app.cfg);
+    if ~isempty(ME)
+        app.msgbox.Text = app.msg.nogpu;
+    end
+    app.img(i) = app.img(i).postProcessImage(app);
+    app.img(i).tmask = true(size(app.img(i).x));
+    
+    % Get region stats
+    app.img(i).roiStats = getRegionStats(app.img(i), app.img(app.cfg.roiIdx).roi.mask);
+
+    lag(i) = t_load(i) - app.img(i).evalTime;
+    plot(app.UIAxes3, i, t_load(i), 'b*', i, lag(i), 'ro');
+    ylim(app.UIAxes3, [-inf inf]);
+
+    app.msgbox.Text = sprintf('Unmixing all images... %1.0f %%', ...
+        app.expt.loadvec(i));
+    drawnow;
+end
+
+hold(app.UIAxes3, "off");
+app.msgbox.Text = 'Ready.';
+
+toc
