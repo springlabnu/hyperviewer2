@@ -33,7 +33,7 @@ end
 %% Optional additional files
 
 % Save spectral data in roi as .mat file
-if false
+if true
     save([save_dir 'analysis_data.mat'], 'im');
 end
 
