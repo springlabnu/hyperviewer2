@@ -123,7 +123,11 @@ The following hyperspectral image filetypes are supported
 * **Kai Zhang** - Secondary author
 
 ## License
-This software is distributed under the GNU General Public License version 3 (GPLv3). If you choose to utilize this software in your work, we kindly request that you acknowledge and cite our project in your publication. Your citation is greatly appreciated and helps support ongoing development. 
+This software is distributed under the GNU General Public License version 3 (GPLv3). If you choose to utilize this software in your work, we kindly request that you acknowledge and cite the following in your publication. Your citation is greatly appreciated and helps support ongoing development. 
+
+[1] Kercher et al. _"Video-rate hyperspectral unmixing for multiplexed microscopy and microendoscopy"_. Sci Rep. (Accepted). 
+
+[2] Harman et al. _"Denoising multiplexed microscopy images in n-dimensional spectral space"_. Biomed Opt Exp 2022; 13(8), 4298–4309.
 
 ## Acknowledgments
 This code includes a number of third-party files from the MATLAB Central File Exchange.
