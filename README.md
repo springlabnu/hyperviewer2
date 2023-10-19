@@ -4,7 +4,7 @@ Visualization and analysis tool for hyperspectral images and videos as described
 
 [1] Kercher et al. _"Video-rate hyperspectral unmixing for multiplexed microscopy and microendoscopy"_. Sci Rep. (Accepted). 
 
-[2] Harman et al. _"Denoising multiplexed microscopy images in n-dimensional spectral space"_. Biomed Opt Exp 2022; 13(8), 4298–4309.
+[2] Harman et al. _"Denoising multiplexed microscopy images in n-dimensional spectral space"_. Biomed Opt Exp 2022; 13(8), 4298–4309. [Read the full publication](https://doi.org/10.1364/BOE.463979)
 
 * [Overview](#overview)
 * [System Requirements](#system-requirements)
