@@ -816,6 +816,10 @@ classdef hyperim
             
             % Initialize
             im = zeros(obj.imx, obj.imy, 3);
+            
+            if ~isa(obj.cube, 'double') && strcmp(opt, 'cube')
+                opt = 'disp';
+            end
 
             switch opt
                 case 'x'                    
@@ -829,10 +833,20 @@ classdef hyperim
                     for i = 1:length(m)
                         im = im + ...
                             repmat(reshape(spectrumRGB(obj.wl(i)), [1 1 3]), [obj.imx obj.imy]) .* ...
-                            repmat(obj.cube(:, :, m(i)), [1 1 3]);
+                            repmat(obj.disp(:, :, m(i)), [1 1 3]);
                     end
                     
                     im = im/length(m);
+                    
+                case 'disp'
+                                        
+                    for i = 1:length(m)
+                        im = im + ...
+                            repmat(reshape(spectrumRGB(obj.wl(i)), [1 1 3]), [obj.imx obj.imy]) .* ...
+                            repmat(obj.disp(:, :, m(i)), [1 1 3]);
+                    end
+                    
+                    im = normalize(im, 'range');
             end          
         end
     end
