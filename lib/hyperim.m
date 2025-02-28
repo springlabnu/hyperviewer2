@@ -18,6 +18,8 @@ classdef hyperim
         A % [dbl] unmixing matrix
         x % [dbl] unmixed basis image cube
         r % [dbl] residuals from the unmixing fit
+        err % [dbl] error in cube values
+        disp_err % [dbl] error in disp values
         x_corr        % [dbl] unmixed basis image cube with flatfield correction
         ff_correction % [dbl] flatfield correction matrix
         redchisq % [dbl] map of reduced chi squared error in unmixing
@@ -135,12 +137,24 @@ classdef hyperim
                     
                     % FLIP the image cube sequence and wavelengths to run from blue to red
                     im_cube = flip(im_cube, 3);
+
+                    
                     
                     % Normalize cube by laser power
                     %         im_cube = im_cube / pwr; % TODO: breaks when pwr is NaN
                     
                     % Get rid of hot corner
                     im_cube(347:end, 880:end, :) = 0;
+
+                    % Poisson Factor (hyperCFME is super-possonian, measured with sigvar.m)
+                    % p-factor is usually on the order of 10
+                    pfactor = 10.3;
+                
+                    % calculate error - Poissonian noise =
+                    % sqrt(p*intensity) scaled by scaling factor 1023 used
+                    % to convert to 10-bit above
+                    obj.err = sqrt(pfactor * im_cube / 1023);
+                    obj.disp_err = obj.err;
                     
                     % Dilate and invert the saturation map such that saturated pixels are
                     % assigned 0. Make the saturation map binary
@@ -525,6 +539,7 @@ classdef hyperim
              obj.cube       = im_cube;
              obj.satpix     = SatPixels;
 %             obj.filt       = filt;
+             
 %             
             % Image is loaded
             obj.isLoaded = true;
@@ -574,10 +589,12 @@ classdef hyperim
             % Do these things to the image *before* unmixing
             
             obj.disp = obj.cube;
+            obj.disp_err = obj.err;
             % Over-sampling correction
             if app.SamplingCorrectionMenu.Checked
                 obj.disp   = sampling_correction(obj.disp,   app.cfg.compress);
                 obj.satpix = sampling_correction(obj.satpix, app.cfg.compress);
+                obj.disp_err = sqrt(sampling_correction(obj.disp_err.^2, app.cfg.compress)/app.cfg.compress.y);
                 
                 % Update image size
                 [obj.imx, obj.imy, ~] = size(obj.disp);
@@ -590,6 +607,7 @@ classdef hyperim
             if app.GaussianBlurMenu.Checked
                 for i = 1:length(obj.wl)
                     obj.disp(:, :, i) = imfilter(obj.disp(:, :, i), app.cfg.gaussfilt, 'replicate');
+                    obj.disp_err(:,:,i) = sqrt(imfilter(obj.disp_err(:,:,i).^2, app.cfg.gaussfilt.^2,'replicate'));
                 end
             end
             
@@ -623,12 +641,13 @@ classdef hyperim
             if app.nDPhasorDenoisingMenu.Checked
                 type = app.ChoosePhasorTypeDropDown.Value;
                 n = str2double(app.ChooseNValueDropDown.Value);
-                sigma = str2double(app.ChooseSigmaValueDropDown.Value);
-                obj.disp = phasorDenoiseNd(obj.disp, type, n, sigma);
+                sig = str2double(app.ChooseSigmaValueDropDown.Value);
+                obj.disp = phasorDenoiseNd(obj.disp, type, n, sig);
             end
             
             % Normalize Cube
             if app.NormalizeRawImageMenu.Checked
+                obj.disp_err = obj.disp_err/(max(obj.disp(:))-min(obj.disp(:)));
                 obj.disp = mat2gray(obj.disp);
             else
                 % Still map from 0 to 1 but use min and max of image size
@@ -673,18 +692,16 @@ classdef hyperim
             
             switch app.expt.filetype
                 case 'hyper'
-                    % Poisson Factor (hyperCFME is super-possonian, measured with sigvar.m)
-                    % p-factor is usually on the order of 10
-                    pfactor = 2;
                     
                     % Sigma is the uncertainty of the measurement and dof is the number of
                     % degrees of freedom of system
-                    sigma = sqrt(pfactor * obj.disp);
-                    
+                   
                     % Reduced Chi-Squared. Defined as the sum of the residual squared
                     % divided by the varience (uncertainty squared), all over the dof of
                     % the system.
-                    temp = (obj.r ./ sigma).^2;
+                    %sigma = sqrt(2 * obj.disp / 1024);
+                    %temp = (obj.r ./ sigma).^2;
+                    temp = (obj.r ./ obj.disp_err).^2;
                     
                     % Zero valued pixels in the image will give zeros for sigma, which
                     % makes redchi inf. Here, set these inf's to zero.
@@ -699,8 +716,8 @@ classdef hyperim
                     % sigma = (0.1 .* handles.cube{n});
                     
                     % Assume sigma = 1;
-                    sigma = ones(size(obj.r));
-                    obj.redchisq = sum((obj.r ./ sigma).^2, 3) / dof;
+                    obj.disp_err = ones(size(obj.r));
+                    obj.redchisq = sum((obj.r ./ obj.disp_err).^2, 3) / dof;
             end
             
             % Miscellaneous - these are specific to hyperCFME images and are usually

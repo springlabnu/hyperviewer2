@@ -5,15 +5,17 @@ tic
 %cutoff = 20;
 
 %dyes in soln
-%cutoff = 0.1;
-%pixmax = 1;
+cutoff = 0.1;
+pixmax = 1;
 
 %phantom images
 %convert uint16 to double
+%{
 cube = double(cube)/(2^16-1);
 cutoff = 0.013;
 %cutoff = 800;
 pixmax = 1; %uint16
+%}
 
 %cutoff low intensity pixels (noise, no signal)
 mask = (max(cube,[],3)>cutoff);
@@ -226,7 +228,7 @@ for bin_x = 1:numbins_x
                     % index of phasor pt_i
                     pt_i = bins2search(search_x,search_y,j,n+1);
                     % pixel coords of pt
-                    px_x = ceil(pt_i/n_pix);
+                    px_x = ceil(pt_i/dim2);
                     px_y = mod(pt_i,dim2);
                     if mod(pt_i,dim2) == 0
                         px_y = dim2;
@@ -282,7 +284,7 @@ for bin_x = 1:numbins_x
             pt_i = grouped_phasors(bin_x,bin_y,pt,n+1);
 
             % pixel coords of pt
-            px_x = ceil(pt_i/n_pix);
+            px_x = ceil(pt_i/dim2);
             px_y = mod(pt_i,dim2);
             if mod(pt_i,dim2) == 0
                 px_y = dim2;
